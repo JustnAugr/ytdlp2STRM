@@ -1,3 +1,5 @@
+deno
+yt-dlp-ejs
 flask==2.2.3
 yt-dlp
 sanitize_filename
