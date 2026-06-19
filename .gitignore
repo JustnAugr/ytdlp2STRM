@@ -15,3 +15,4 @@ config.json
 crons.json
 downloaded_files/*
 temp/*
+dev/*

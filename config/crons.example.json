@@ -1,4 +1,1 @@
-[
-    {"every" : "hours", "qty" : "1", "at" : "", "timezone": "", "do" : ["--media", "twitch", "--params", "direct"]},
-    {"every" : "hours", "qty" : "4", "at" : "", "timezone": "", "do" : ["--media", "youtube", "--params", "direct"]}
-]
+[{"every": "hours", "qty": "2", "at": "", "timezone": "America/New_York", "do": ["--media", "youtube", "--param", "bridge"]}]

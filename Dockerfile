@@ -8,5 +8,7 @@ RUN apt-get update && \
     apt-get install -y ffmpeg && \
     apt-get clean
 RUN pip install --no-cache-dir --upgrade -r /opt/ytdlp2STRM/requierments.txt
+# RUN pip install deno
+# RUN pip install yt-dlp-ejs
 CMD ["python", "main.py"]
 EXPOSE 5000
