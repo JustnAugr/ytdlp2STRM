@@ -1772,7 +1772,7 @@ def to_strm(method):
                         "upload_date": upload_date,
                         "year": year,
                         "plot": description.replace("\n", " <br/>\n "),
-                        "season": "1",
+                        "season": year,
                         "episode": "",
                         "preview": thumbnail,
                         "runtime": runtime_minutes,
@@ -2044,4 +2044,3 @@ def download(youtube_id):
     Youtube().set_language(filename_command)
     filename = w.worker(filename_command).output()
     return send_file(os.path.join(temp_dir, filename))
-
