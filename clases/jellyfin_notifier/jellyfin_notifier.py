@@ -146,7 +146,7 @@ class JellyfinNotifier:
             # Endpoint: POST /Items/{Id}/Refresh where {Id} is the library's ItemId.
             url = f"{self.base_url}/Items/{library_id}/Refresh"
             headers = {
-                "X-Emby-Token": self.api_key,
+                "Authorization": f'MediaBrowser Client="ytdlp2strm", Device="ytdlp2strm", Client="ytdlp2strm", DeviceId="ytdlp2strm", Version="1.0", Token="{self.api_key}"'
             }
             # Conservative params: pick up new/changed files, do not re-extract
             # metadata or images. This is the lightest possible refresh.
