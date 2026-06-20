@@ -1696,7 +1696,7 @@ def to_strm(method):
                 # Format title with episode number (only for NEW videos)
                 use_mmdd = episode_format.lower() == "mmdd"
                 formatted_title = format_episode_title(
-                    video_name, folder_full_path, upload_date, use_mmdd
+                    video_name, folder_full_path, upload_date, use_mmdd, year
                 )
 
                 file_path = "{}/{}/{}/{}.{}".format(
