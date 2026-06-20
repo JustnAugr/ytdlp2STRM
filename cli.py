@@ -1,35 +1,35 @@
-from datetime import datetime
 import argparse
+from datetime import datetime
+
 import config.plugins as plugins
 from clases.log import log as l
-from utils.sanitize import sanitize
 from version import __version__ as APP_VERSION
 
-def main(raw_args=None):
-    parser=argparse.ArgumentParser()
 
-    parser.add_argument('-m', '--media', help='Media platform')
-    parser.add_argument('-p', '--params', help='Params to media platform mode.')
-    parser.add_argument('-v', '--version', help='Show YTDLP2STRM version')
+def main(raw_args=None):
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-m", "--media", help="Media platform")
+    parser.add_argument("-p", "--params", help="Params to media platform mode.")
+    parser.add_argument("-v", "--version", help="Show YTDLP2STRM version")
     # Keep working for old version
-    parser.add_argument('--m', help='Media platform (old)')
-    parser.add_argument('--p', help='Params to media platform mode (old)')
+    parser.add_argument("--m", help="Media platform (old)")
+    parser.add_argument("--p", help="Params to media platform mode (old)")
     # --
 
-    args=parser.parse_args(raw_args)
+    args = parser.parse_args(raw_args)
     method = args.media if args.media != None else "error"
-    params = args.params.split(',') if args.params != None else None
+    params = args.params.split(",") if args.params != None else None
 
     # Keep working for old version
     if method == "error":
         method = args.m if args.m != None else None
     if params == None:
-        params = args.p.split(',') if args.p != None else None
-
+        params = args.p.split(",") if args.p != None else None
 
     try:
         if "plugins" in method:
-            method = method.split('.')[1]
+            method = method.split(".")[1]
         if method == "make_files_strm":
             method = "youtube"
     except:
@@ -38,9 +38,9 @@ def main(raw_args=None):
     try:
         if "twitch" in params:
             params = [params[1]]
-        if 'redirect' in params:
+        if "redirect" in params:
             params = ["direct"]
-        if 'stream' in params:
+        if "stream" in params:
             params = ["bridge"]
     except:
         params = None
@@ -48,21 +48,31 @@ def main(raw_args=None):
 
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-    
+
     log_text = "Running {} with {} params".format(method, params)
     l.log("CLI", log_text)
 
     if args.version:
-        log_text = (
-            'ytdlp2STRM version: {}'.format(
-                APP_VERSION
-            )
-        )
+        log_text = "ytdlp2STRM version: {}".format(APP_VERSION)
         l.log("CLI", log_text)
 
     r = False
-    if params != None:
-        r = eval("{}.{}.{}".format("plugins",method,"to_strm"))(*params)
+    if params != None and method:
+        # Resolucion segura del plugin: en lugar de eval() sobre una cadena
+        # construida con entrada del usuario (riesgo de inyeccion de codigo),
+        # se obtiene el modulo del plugin y su funcion to_strm via getattr.
+        # getattr solo devuelve atributos ya existentes del modulo config.plugins,
+        # por lo que un 'method' arbitrario no puede ejecutar codigo.
+        plugin_module = getattr(plugins, method, None)
+        to_strm_func = (
+            getattr(plugin_module, "to_strm", None) if plugin_module else None
+        )
+        if callable(to_strm_func):
+            r = to_strm_func(*params)
+        else:
+            l.log("CLI", "Unknown or invalid plugin method: {}".format(method))
+
 
 if __name__ == "__main__":
     main()
+
