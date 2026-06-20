@@ -76,7 +76,9 @@ def _get_video_quality_height():
 def _get_video_format_selector(default_selector="best"):
     max_height = _get_video_quality_height()
     if not max_height:
+        l.log("youtube", f"returning default selector {default_selector}")
         return default_selector
+    l.log("youtube", f"returning {max_height}")
     return f"bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best"
 
 
