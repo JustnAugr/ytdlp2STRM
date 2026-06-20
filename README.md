@@ -12,5 +12,6 @@ Some completed changes:
 
 TODO:
 - add some notification sending via NTFY for errors, etc
-- simplify youtube code - probably going to be removing direct and just keeping download + bridge
--- bridge is my main driver right now for jellyfin, but I'd like to think about download given sponsorblock only works for download mode
+- simplify youtube code 
+    - probably going to be removing direct and just keeping download + bridge
+    - bridge is my main driver right now for jellyfin, but I'd like to think about download given sponsorblock only works for download mode
