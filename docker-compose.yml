@@ -5,6 +5,7 @@ services:
     environment:
       - AM_I_IN_A_DOCKER_CONTAINER=Yes
       - DOCKER_PORT=5005 #this will be put into the .strm file
+      - TZ=America/New_York
     volumes:
       - ./dev/media:/media
       - ytdlp2strm-data:/opt/ytdlp2STRM
