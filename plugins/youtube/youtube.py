@@ -31,37 +31,142 @@ direct_prewarm_lock = threading.Lock()
 direct_prewarm_semaphore = threading.Semaphore(2)
 DIRECT_CACHE_VERSION = "v4"
 
-## -- LOAD CONFIG AND CHANNELS FILES
-ytdlp2strm_config = c.config("./config/config.json").get_config()
 
-config = c.config("./plugins/youtube/config.json").get_config()
+# load config values so we don't need a restart
+def _load_config_values():
+    global \
+        ytdlp2strm_config, \
+        config, \
+        channels, \
+        media_folder, \
+        days_dateafter, \
+        videos_limit, \
+        cookies, \
+        cookie_value, \
+        lang, \
+        episode_format, \
+        video_quality, \
+        download_subtitles, \
+        convert_subtitles_to_srt, \
+        keep_vtt_subtitles, \
+        direct_stream_cache_hours, \
+        direct_serve_media_playlist, \
+        direct_prewarm_latest_per_channel, \
+        direct_prewarm_neighbors, \
+        source_platform, \
+        host, \
+        port, \
+        SECRET_KEY, \
+        DOCKER_PORT, \
+        proxy, \
+        proxy_url
+    ytdlp2strm_config = c.config("./config/config.json").get_config()
+    config = c.config("./plugins/youtube/config.json").get_config()
+    channels = c.config(config["channels_list_file"]).get_channels()
 
-channels = c.config(config["channels_list_file"]).get_channels()
+    media_folder = config["strm_output_folder"]
+    days_dateafter = config["days_dateafter"]
+    videos_limit = config["videos_limit"]
+    try:
+        cookies = config["cookies"]
+        cookie_value = config["cookie_value"]
+    except:
+        cookies = "cookies-from-browser"
+        cookie_value = "chrome"
 
-media_folder = config["strm_output_folder"]
-days_dateafter = config["days_dateafter"]
-videos_limit = config["videos_limit"]
-try:
-    cookies = config["cookies"]
-    cookie_value = config["cookie_value"]
-except:
-    cookies = "cookies-from-browser"
-    cookie_value = "chrome"
+    try:
+        lang = config["lang"]
+    except:
+        lang = "en"
 
-try:
-    lang = config["lang"]
-except:
-    lang = "en"
+    try:
+        episode_format = config["episode_format"]
+    except:
+        episode_format = "sequential"
 
-try:
-    episode_format = config["episode_format"]
-except:
-    episode_format = "sequential"
+    try:
+        video_quality = str(config["video_quality"]).strip().lower()
+    except:
+        video_quality = "best"
 
-try:
-    video_quality = str(config["video_quality"]).strip().lower()
-except:
-    video_quality = "best"
+    try:
+        download_subtitles = str(config["download_subtitles"]).lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
+    except:
+        download_subtitles = False
+
+    try:
+        convert_subtitles_to_srt = str(config["convert_subtitles_to_srt"]).lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
+    except:
+        convert_subtitles_to_srt = False
+
+    try:
+        keep_vtt_subtitles = str(config["keep_vtt_subtitles"]).lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
+    except:
+        keep_vtt_subtitles = True
+
+    try:
+        direct_stream_cache_hours = int(config["direct_stream_cache_hours"])
+    except:
+        direct_stream_cache_hours = 4
+
+    try:
+        direct_serve_media_playlist = str(
+            config["direct_serve_media_playlist"]
+        ).lower() in ("true", "1", "yes", "on")
+    except:
+        direct_serve_media_playlist = False
+
+    try:
+        direct_prewarm_latest_per_channel = int(
+            config["direct_prewarm_latest_per_channel"]
+        )
+    except:
+        direct_prewarm_latest_per_channel = 1
+
+    try:
+        direct_prewarm_neighbors = str(config["direct_prewarm_neighbors"]).lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
+    except:
+        direct_prewarm_neighbors = True
+
+    source_platform = "youtube"
+    host = ytdlp2strm_config["ytdlp2strm_host"]
+    port = ytdlp2strm_config["ytdlp2strm_port"]
+
+    SECRET_KEY = os.environ.get("AM_I_IN_A_DOCKER_CONTAINER", False)
+    DOCKER_PORT = os.environ.get("DOCKER_PORT", False)
+    if SECRET_KEY:
+        port = DOCKER_PORT
+
+    if "proxy" in config:
+        proxy = config["proxy"]
+        proxy_url = config["proxy_url"]
+    else:
+        proxy = False
+        proxy_url = ""
+
+
+_load_config_values()
+## -- END
 
 
 def _get_video_quality_height():
@@ -89,82 +194,6 @@ def _quality_cache_tag():
     """
     height = _get_video_quality_height()
     return f"h{height}" if height else "best"
-
-
-try:
-    download_subtitles = str(config["download_subtitles"]).lower() in (
-        "true",
-        "1",
-        "yes",
-        "on",
-    )
-except:
-    download_subtitles = False
-
-try:
-    convert_subtitles_to_srt = str(config["convert_subtitles_to_srt"]).lower() in (
-        "true",
-        "1",
-        "yes",
-        "on",
-    )
-except:
-    convert_subtitles_to_srt = False
-
-try:
-    keep_vtt_subtitles = str(config["keep_vtt_subtitles"]).lower() in (
-        "true",
-        "1",
-        "yes",
-        "on",
-    )
-except:
-    keep_vtt_subtitles = True
-
-try:
-    direct_stream_cache_hours = int(config["direct_stream_cache_hours"])
-except:
-    direct_stream_cache_hours = 4
-
-try:
-    direct_serve_media_playlist = str(
-        config["direct_serve_media_playlist"]
-    ).lower() in ("true", "1", "yes", "on")
-except:
-    direct_serve_media_playlist = False
-
-try:
-    direct_prewarm_latest_per_channel = int(config["direct_prewarm_latest_per_channel"])
-except:
-    direct_prewarm_latest_per_channel = 1
-
-try:
-    direct_prewarm_neighbors = str(config["direct_prewarm_neighbors"]).lower() in (
-        "true",
-        "1",
-        "yes",
-        "on",
-    )
-except:
-    direct_prewarm_neighbors = True
-
-source_platform = "youtube"
-host = ytdlp2strm_config["ytdlp2strm_host"]
-port = ytdlp2strm_config["ytdlp2strm_port"]
-
-SECRET_KEY = os.environ.get("AM_I_IN_A_DOCKER_CONTAINER", False)
-DOCKER_PORT = os.environ.get("DOCKER_PORT", False)
-if SECRET_KEY:
-    port = DOCKER_PORT
-
-if "proxy" in config:
-    proxy = config["proxy"]
-    proxy_url = config["proxy_url"]
-else:
-    proxy = False
-    proxy_url = ""
-
-## -- END
 
 
 class Youtube:
@@ -1564,6 +1593,11 @@ def find_strm_path_for_video_id(media_folder, video_id):
 
 
 def to_strm(method):
+    # reload our channel list and youtube settings config in case it's changed
+    _load_config_values()
+    l.log(
+        "youtube", f"running to_strm for the following channels: {', '.join(channels)}"
+    )
     for youtube_channel in channels:
         yt = Youtube(youtube_channel)
         log_text = " --------------- "
@@ -1794,6 +1828,7 @@ def to_strm(method):
         else:
             log_text = " no videos detected..."
             l.log("youtube", log_text)
+    l.log("youtube", "Finished to_strm for youtube")
 
 
 def direct(youtube_id, remote_addr):

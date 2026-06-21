@@ -1,0 +1,23 @@
+[project]
+name = "ytdlpstrmfork"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "cachetools>=7.1.4",
+    "deno>=2.8.3",
+    "ffmpeg-python>=0.2.0",
+    "flask==2.2.3",
+    "flask-socketio>=5.6.1",
+    "pillow>=12.2.0",
+    "pytz>=2026.2",
+    "requests-html>=0.10.0",
+    "requests[socks]>=2.34.2",
+    "sanitize-filename>=1.2.0",
+    "schedule>=1.2.2",
+    "tzlocal>=5.3.1",
+    "watchdog>=6.0.0",
+    "werkzeug==2.2.2",
+    "yt-dlp>=2026.6.9",
+    "yt-dlp-ejs>=0.8.0",
+]
