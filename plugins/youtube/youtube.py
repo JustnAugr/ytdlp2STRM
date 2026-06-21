@@ -12,6 +12,7 @@ from urllib.parse import quote, urljoin
 import requests
 from cachetools import TTLCache
 from flask import Response, redirect, request, send_file, stream_with_context
+from werkzeug.datastructures import Headers
 
 from clases.config import config as c
 from clases.folders import folders as f
@@ -165,8 +166,8 @@ def _load_config_values():
         proxy_url = ""
 
 
+# load config values for the first time
 _load_config_values()
-## -- END
 
 
 def _get_video_quality_height():
@@ -181,9 +182,15 @@ def _get_video_quality_height():
 def _get_video_format_selector(default_selector="best"):
     max_height = _get_video_quality_height()
     if not max_height:
-        l.log("youtube", f"returning default selector {default_selector}")
+        l.log(
+            "youtube",
+            f"_get_video_format_selector: returning default selector {default_selector}",
+        )
         return default_selector
-    l.log("youtube", f"returning {max_height}")
+    l.log(
+        "youtube",
+        f"_get_video_format_selector: returning bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best",
+    )
     return f"bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best"
 
 
@@ -1930,6 +1937,8 @@ def bridge(youtube_id):
     s_youtube_id = youtube_id.split("-audio")[0]
     s_youtube_id_url = f"https://www.youtube.com/watch?v={s_youtube_id}"
 
+    l.log("youtube", f"bridge: stream requested on {s_youtube_id_url}")
+
     # Get info for duration and size
     duration = None
     file_size = None
@@ -1968,28 +1977,15 @@ def bridge(youtube_id):
         start_time = (byte_start / file_size) * duration
 
     def generate():
-        if config["sponsorblock"]:
-            command = [
-                "yt-dlp",
-                "--no-warnings",
-                "-o",
-                "-",
-                "-f",
-                _get_video_format_selector("bestvideo+bestaudio"),
-                "--sponsorblock-remove",
-                config["sponsorblock_cats"],
-                "--restrict-filenames",
-            ]
-        else:
-            command = [
-                "yt-dlp",
-                "--no-warnings",
-                "-o",
-                "-",
-                "-f",
-                _get_video_format_selector("best"),
-                "--restrict-filenames",
-            ]
+        command = [
+            "yt-dlp",
+            "--no-warnings",
+            "-o",
+            "-",
+            "-f",
+            _get_video_format_selector("bv*+ba/b"),
+            "--restrict-filenames",
+        ]
 
         if start_time > 0:
             command.extend(["--download-sections", f"*{start_time}-inf"])
@@ -2020,16 +2016,30 @@ def bridge(youtube_id):
         finally:
             process.kill()
 
-    response = Response(stream_with_context(generate()), mimetype="video/mp4")
+    headers = Headers()
+    headers.add("Accept-Ranges", "bytes")
 
-    response.headers["Accept-Ranges"] = "bytes"
     if file_size:
-        response.headers["Content-Length"] = str(length)
+        headers.add("Content-Length", str(length))
         if range_header:
-            response.status_code = 206
-            response.headers["Content-Range"] = (
-                f"bytes {byte_start}-{byte_end}/{file_size}"
-            )
+            headers.add("Content-Range", f"bytes {byte_start}-{byte_end}/{file_size}")
+
+    response = Response(
+        stream_with_context(generate()),
+        mimetype="video/mp4",
+        direct_passthrough=True,
+        headers=headers,
+    )
+
+    response.cache_control.public = True
+    response.cache_control.max_age = int(60000)
+
+    if file_size and range_header:
+        l.log(
+            "youtube",
+            "bridge: returning status code 206 because range_header requested",
+        )
+        response.status_code = 206
 
     return response
 
