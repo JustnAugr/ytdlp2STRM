@@ -4,14 +4,13 @@ import os
 import platform
 import re
 import subprocess
-import threading
 import time
 from datetime import datetime
-from urllib.parse import quote, urljoin
+from urllib.parse import urljoin
 
 import requests
 from cachetools import TTLCache
-from flask import Response, redirect, request, send_file, stream_with_context
+from flask import Response, request, send_file, stream_with_context
 from werkzeug.datastructures import Headers
 
 from clases.config import config as c
@@ -24,13 +23,6 @@ from utils.episode_numbering import format_episode_title
 from utils.sanitize import sanitize
 
 recent_requests = TTLCache(maxsize=200, ttl=30)
-direct_stream_cache = TTLCache(maxsize=500, ttl=1800)
-direct_neighbor_cache = TTLCache(maxsize=5000, ttl=86400)
-direct_prewarm_inflight = TTLCache(maxsize=1000, ttl=600)
-direct_neighbor_index_inflight = TTLCache(maxsize=1, ttl=600)
-direct_prewarm_lock = threading.Lock()
-direct_prewarm_semaphore = threading.Semaphore(2)
-DIRECT_CACHE_VERSION = "v4"
 
 
 # load config values so we don't need a restart
@@ -50,10 +42,6 @@ def _load_config_values():
         download_subtitles, \
         convert_subtitles_to_srt, \
         keep_vtt_subtitles, \
-        direct_stream_cache_hours, \
-        direct_serve_media_playlist, \
-        direct_prewarm_latest_per_channel, \
-        direct_prewarm_neighbors, \
         source_platform, \
         host, \
         port, \
@@ -71,23 +59,23 @@ def _load_config_values():
     try:
         cookies = config["cookies"]
         cookie_value = config["cookie_value"]
-    except:
+    except Exception:
         cookies = "cookies-from-browser"
         cookie_value = "chrome"
 
     try:
         lang = config["lang"]
-    except:
+    except Exception:
         lang = "en"
 
     try:
         episode_format = config["episode_format"]
-    except:
+    except Exception:
         episode_format = "sequential"
 
     try:
         video_quality = str(config["video_quality"]).strip().lower()
-    except:
+    except Exception:
         video_quality = "best"
 
     try:
@@ -97,7 +85,7 @@ def _load_config_values():
             "yes",
             "on",
         )
-    except:
+    except Exception:
         download_subtitles = False
 
     try:
@@ -107,7 +95,7 @@ def _load_config_values():
             "yes",
             "on",
         )
-    except:
+    except Exception:
         convert_subtitles_to_srt = False
 
     try:
@@ -117,37 +105,8 @@ def _load_config_values():
             "yes",
             "on",
         )
-    except:
+    except Exception:
         keep_vtt_subtitles = True
-
-    try:
-        direct_stream_cache_hours = int(config["direct_stream_cache_hours"])
-    except:
-        direct_stream_cache_hours = 4
-
-    try:
-        direct_serve_media_playlist = str(
-            config["direct_serve_media_playlist"]
-        ).lower() in ("true", "1", "yes", "on")
-    except:
-        direct_serve_media_playlist = False
-
-    try:
-        direct_prewarm_latest_per_channel = int(
-            config["direct_prewarm_latest_per_channel"]
-        )
-    except:
-        direct_prewarm_latest_per_channel = 1
-
-    try:
-        direct_prewarm_neighbors = str(config["direct_prewarm_neighbors"]).lower() in (
-            "true",
-            "1",
-            "yes",
-            "on",
-        )
-    except:
-        direct_prewarm_neighbors = True
 
     source_platform = "youtube"
     host = ytdlp2strm_config["ytdlp2strm_host"]
@@ -660,7 +619,7 @@ class Youtube:
                         media_folder, sanitize(self.channel_name)
                     )
                 )
-            except:
+            except Exception:
                 pass
         else:
             command = [
@@ -686,7 +645,7 @@ class Youtube:
 
             try:
                 self.channel_description = w.worker(command).shell()
-            except:
+            except Exception:
                 d_file = open(
                     "{}/{}.description".format(
                         media_folder, sanitize(self.channel_name)
@@ -704,7 +663,7 @@ class Youtube:
                         media_folder, sanitize(self.channel_name)
                     )
                 )
-            except:
+            except Exception:
                 pass
 
         return self.channel_description
@@ -912,10 +871,12 @@ def _fix_vtt_alignment(vtt_text):
             continue
 
         timing_line = _fix_vtt_cue_timing_line(block_lines[timing_idx])
-        text_lines = [_clean_vtt_text_line(l) for l in block_lines[timing_idx + 1 :]]
+        text_lines = [
+            _clean_vtt_text_line(line) for line in block_lines[timing_idx + 1 :]
+        ]
 
         # Filter empty / whitespace-only lines
-        non_empty = [l for l in text_lines if l.strip()]
+        non_empty = [line for line in text_lines if line.strip()]
         if not non_empty:
             # Skip cues that contain no real text after cleaning
             continue
@@ -998,7 +959,7 @@ def _convert_vtt_file_to_srt(vtt_path):
     if not keep_vtt_subtitles:
         try:
             os.remove(vtt_path)
-        except:
+        except Exception:
             pass
     return True
 
@@ -1036,85 +997,6 @@ def _fix_vtt_files_in_subtitle_dir(subtitle_dir, subtitle_base):
     return fixed_count
 
 
-def _make_direct_response(m3u8_content):
-    flask_response = Response(m3u8_content, mimetype="application/vnd.apple.mpegurl")
-    flask_response.headers["Content-Type"] = (
-        "application/vnd.apple.mpegurl; charset=utf-8"
-    )
-    flask_response.headers["Content-Disposition"] = 'inline; filename="index.m3u8"'
-    max_age_seconds = max(1, direct_stream_cache_hours) * 3600
-    flask_response.headers["Cache-Control"] = f"public, max-age={max_age_seconds}"
-    flask_response.headers["Accept-Ranges"] = "bytes"
-    flask_response.headers["Access-Control-Allow-Origin"] = "*"
-    flask_response.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
-    flask_response.headers["Access-Control-Allow-Headers"] = "Range"
-    return flask_response
-
-
-def _resolve_direct_m3u8(youtube_id):
-    extractor_args = ["youtube:player-client=default,web_safari"]
-    if lang and lang.strip():
-        extractor_args.append(f"youtube:lang={lang}")
-    extractor_args.append("youtubetab:skip=authcheck")
-    command = [
-        "yt-dlp",
-        "-j",
-        "--no-playlist",
-        "--no-warnings",
-        "--extractor-args",
-        ";".join(extractor_args),
-        f"https://www.youtube.com/watch?v={youtube_id}",
-    ]
-    # Youtube().set_cookies(command)
-    Youtube().set_proxy(command)
-    full_info_json_str = w.worker(command).output()
-    m3u8_url = None
-    subtitle_info = None
-    try:
-        full_info_json = json.loads(full_info_json_str)
-        subtitle_info = get_subtitle_info_from_video_info(full_info_json)
-
-        for fmt in full_info_json["formats"]:
-            if "manifest_url" in fmt.keys():
-                m3u8_url = fmt["manifest_url"]
-                break
-    except:
-        pass
-
-    if not m3u8_url:
-        return None
-
-    response = requests.get(m3u8_url, timeout=15)
-    if response.status_code != 200:
-        return None
-
-    response.encoding = "utf-8"
-    filtered_content = filter_and_modify_bandwidth(
-        response.text, subtitle_info, youtube_id
-    )
-    if direct_serve_media_playlist:
-        variant_url = None
-        for line in filtered_content.splitlines():
-            stripped = line.strip()
-            if stripped and not stripped.startswith("#"):
-                variant_url = stripped
-                break
-        if variant_url:
-            try:
-                variant_response = requests.get(variant_url, timeout=15)
-                if variant_response.status_code == 200:
-                    variant_response.encoding = "utf-8"
-                    media_playlist = _make_media_playlist_absolute(
-                        variant_response.text, variant_url
-                    )
-                    filtered_content = media_playlist
-            except Exception as e:
-                l.log(
-                    "youtube", f"Error downloading media playlist for {youtube_id}: {e}"
-                )
-    return filtered_content
-
-
 def _make_media_playlist_absolute(m3u8_content, playlist_url):
     absolute_lines = []
     uri_re = re.compile(r'URI="([^"]+)"')
@@ -1138,189 +1020,8 @@ def _get_stream_inf_height(info):
         return None
     try:
         return int(match.group(1))
-    except:
+    except Exception:
         return None
-
-
-def _is_direct_stream_cache_valid(cache_path):
-    if not os.path.isfile(cache_path):
-        return False
-
-    max_age_seconds = max(1, direct_stream_cache_hours) * 3600
-    return (time.time() - os.path.getmtime(cache_path)) < max_age_seconds
-
-
-def _direct_stream_cache_path(youtube_id):
-    # Issue #119: include the quality tag in the filename so changing
-    # video_quality in config invalidates previously-cached variant URLs.
-    return os.path.join(
-        media_folder,
-        ".direct_cache",
-        f"{youtube_id}.{lang}.{_quality_cache_tag()}.{DIRECT_CACHE_VERSION}.m3u8",
-    )
-
-
-def _save_direct_stream_to_disk(youtube_id, m3u8_content):
-    cache_dir = os.path.join(media_folder, ".direct_cache")
-    cache_path = _direct_stream_cache_path(youtube_id)
-    try:
-        os.makedirs(cache_dir, exist_ok=True)
-        with open(cache_path, "w", encoding="utf-8") as f:
-            f.write(m3u8_content)
-    except Exception as e:
-        l.log("youtube", f"Error saving direct stream cache for {youtube_id}: {e}")
-
-
-def _load_direct_stream_from_disk(youtube_id):
-    cache_path = _direct_stream_cache_path(youtube_id)
-    if _is_direct_stream_cache_valid(cache_path):
-        try:
-            with open(cache_path, "r", encoding="utf-8") as f:
-                content = f.read()
-                return content
-        except:
-            pass
-    return None
-
-
-def _is_direct_stream_cached(youtube_id):
-    stream_cache_key = f"{youtube_id}:{lang}:{_quality_cache_tag()}"
-    return stream_cache_key in direct_stream_cache or _is_direct_stream_cache_valid(
-        _direct_stream_cache_path(youtube_id)
-    )
-
-
-def _prewarm_direct_stream(youtube_id, reason):
-    if not youtube_id or "-audio" in youtube_id or _is_direct_stream_cached(youtube_id):
-        return
-
-    with direct_prewarm_lock:
-        if youtube_id in direct_prewarm_inflight:
-            return
-        direct_prewarm_inflight[youtube_id] = time.time()
-
-    def worker():
-        started_at = time.time()
-        direct_prewarm_semaphore.acquire()
-        try:
-            if _is_direct_stream_cached(youtube_id):
-                return
-            l.log("youtube", f"[direct-prewarm] start {youtube_id} reason={reason}")
-            m3u8_content = _resolve_direct_m3u8(youtube_id)
-            if m3u8_content:
-                direct_stream_cache[f"{youtube_id}:{lang}:{_quality_cache_tag()}"] = (
-                    m3u8_content
-                )
-                _save_direct_stream_to_disk(youtube_id, m3u8_content)
-                l.log(
-                    "youtube",
-                    f"[direct-prewarm] done {youtube_id} reason={reason} elapsed={time.time() - started_at:.3f}s bytes={len(m3u8_content)}",
-                )
-            else:
-                l.log(
-                    "youtube",
-                    f"[direct-prewarm] skipped {youtube_id} reason={reason} elapsed={time.time() - started_at:.3f}s",
-                )
-        except Exception as e:
-            l.log(
-                "youtube", f"[direct-prewarm] error {youtube_id} reason={reason}: {e}"
-            )
-        finally:
-            direct_prewarm_semaphore.release()
-            with direct_prewarm_lock:
-                if youtube_id in direct_prewarm_inflight:
-                    del direct_prewarm_inflight[youtube_id]
-
-    threading.Thread(target=worker, daemon=True).start()
-
-
-def _index_direct_neighbors(videos):
-    video_ids = [video.get("id") for video in videos if video.get("id")]
-    for idx, video_id in enumerate(video_ids):
-        previous_id = video_ids[idx - 1] if idx > 0 else None
-        next_id = video_ids[idx + 1] if idx + 1 < len(video_ids) else None
-        direct_neighbor_cache[video_id] = (previous_id, next_id)
-
-
-def _extract_direct_video_id_from_strm(strm_path):
-    try:
-        with open(strm_path, "r", encoding="utf-8") as f:
-            content = f.read().strip()
-        match = re.search(r"/youtube/(?:direct|redirect)/([^/?\s]+)", content)
-        if match:
-            return match.group(1)
-    except:
-        pass
-    return None
-
-
-def _index_direct_neighbors_from_disk(seed_youtube_id=None):
-    with direct_prewarm_lock:
-        if "disk-index" in direct_neighbor_index_inflight:
-            return
-        direct_neighbor_index_inflight["disk-index"] = time.time()
-
-    def worker():
-        started_at = time.time()
-        indexed = 0
-        try:
-            for root, dirs, files in os.walk(media_folder):
-                strm_files = sorted(file for file in files if file.endswith(".strm"))
-                video_ids = []
-                for file in strm_files:
-                    video_id = _extract_direct_video_id_from_strm(
-                        os.path.join(root, file)
-                    )
-                    if video_id:
-                        video_ids.append(video_id)
-                for idx, video_id in enumerate(video_ids):
-                    previous_id = video_ids[idx - 1] if idx > 0 else None
-                    next_id = video_ids[idx + 1] if idx + 1 < len(video_ids) else None
-                    direct_neighbor_cache[video_id] = (previous_id, next_id)
-                    indexed += 1
-            l.log(
-                "youtube",
-                f"[direct-neighbors] indexed_from_disk={indexed} elapsed={time.time() - started_at:.3f}s",
-            )
-            if seed_youtube_id:
-                neighbors = direct_neighbor_cache.get(seed_youtube_id)
-                if neighbors:
-                    for neighbor_id in neighbors:
-                        if neighbor_id:
-                            _prewarm_direct_stream(
-                                neighbor_id, f"neighbor:{seed_youtube_id}"
-                            )
-        except Exception as e:
-            l.log("youtube", f"[direct-neighbors] disk index error: {e}")
-        finally:
-            with direct_prewarm_lock:
-                if "disk-index" in direct_neighbor_index_inflight:
-                    del direct_neighbor_index_inflight["disk-index"]
-
-    threading.Thread(target=worker, daemon=True).start()
-
-
-def _prewarm_direct_neighbors(youtube_id):
-    if not direct_prewarm_neighbors:
-        return
-
-    neighbors = direct_neighbor_cache.get(youtube_id)
-    if not neighbors:
-        _index_direct_neighbors_from_disk(youtube_id)
-        return
-
-    for neighbor_id in neighbors:
-        if neighbor_id:
-            _prewarm_direct_stream(neighbor_id, f"neighbor:{youtube_id}")
-
-
-def _prewarm_latest_direct_streams(videos):
-    if direct_prewarm_latest_per_channel <= 0:
-        return
-
-    latest_videos = list(reversed(videos[-direct_prewarm_latest_per_channel:]))
-    for video in latest_videos:
-        _prewarm_direct_stream(video.get("id"), "latest-channel-video")
 
 
 def download_subtitles_for_video(youtube_id, file_path):
@@ -1396,175 +1097,6 @@ def download_subtitles_for_video(youtube_id, file_path):
         l.log("youtube", f"Error downloading subtitles for {youtube_id}: {e}")
 
 
-def filter_and_modify_bandwidth(m3u8_content, subtitle_info=None, youtube_id=None):
-    lines = m3u8_content.splitlines()
-
-    highest_bandwidth = 0
-    best_video_info = None
-    best_video_url = None
-
-    media_lines = []
-
-    # Issue #110 / PR #115: YouTube auto-dubbed videos expose per-language
-    # variants in the HLS manifest via YT-EXT-AUDIO-CONTENT-ID (e.g. "en-US.3").
-    # When at least one stream declares a language, prefer streams matching the
-    # configured `lang`; otherwise keep the pure highest-bandwidth logic.
-    yt_audio_lang_re = re.compile(r'YT-EXT-AUDIO-CONTENT-ID="([^."]+)')
-    audio_group_re = re.compile(r'\bAUDIO="([^"]+)"')
-    group_id_re = re.compile(r'\bGROUP-ID="([^"]+)"')
-    media_lang_re = re.compile(r'\bLANGUAGE="([^"]+)"')
-    default_re = re.compile(r"\bDEFAULT=YES\b")
-    sel_by_lang = False
-    if lang and lang.strip():
-        for line in lines:
-            if line.startswith("#EXT-X-STREAM-INF:"):
-                match = yt_audio_lang_re.search(line)
-                if match and match.group(1):
-                    sel_by_lang = True
-                    break
-
-    for i in range(len(lines)):
-        line = lines[i]
-
-        if line.startswith("#EXT-X-STREAM-INF:") and i + 1 < len(lines):
-            info = line
-            url = lines[i + 1]
-            try:
-                bandwidth = int(info.split("BANDWIDTH=")[1].split(",")[0])
-            except:
-                bandwidth = 0
-
-            desired_lang = not sel_by_lang
-            if sel_by_lang:
-                match = yt_audio_lang_re.search(info)
-                if match and match.group(1):
-                    info_lang = match.group(1)
-                    # Handle "en" vs "en-US" in either direction
-                    if (
-                        lang.startswith(info_lang)
-                        or info_lang.startswith(lang)
-                        or info_lang == lang
-                    ):
-                        desired_lang = True
-
-            max_height = _get_video_quality_height()
-            stream_height = _get_stream_inf_height(info)
-            desired_quality = (
-                not max_height or not stream_height or stream_height <= max_height
-            )
-
-            if bandwidth > highest_bandwidth and desired_lang and desired_quality:
-                highest_bandwidth = bandwidth
-                best_video_info = info
-                best_video_url = url
-
-        if line.startswith("#EXT-X-MEDIA:"):
-            media_lines.append(line)
-
-    # Fallback: if language filtering rejected everything (e.g. the configured
-    # lang is not present at all in the manifest), relax the filter and pick
-    # the highest bandwidth variant so playback is not broken.
-    if best_video_url is None:
-        for i in range(len(lines)):
-            line = lines[i]
-            if line.startswith("#EXT-X-STREAM-INF:") and i + 1 < len(lines):
-                info = line
-                url = lines[i + 1]
-                try:
-                    bandwidth = int(info.split("BANDWIDTH=")[1].split(",")[0])
-                except:
-                    bandwidth = 0
-                max_height = _get_video_quality_height()
-                stream_height = _get_stream_inf_height(info)
-                desired_quality = (
-                    not max_height or not stream_height or stream_height <= max_height
-                )
-                if bandwidth > highest_bandwidth and desired_quality:
-                    highest_bandwidth = bandwidth
-                    best_video_info = info
-                    best_video_url = url
-
-    if best_video_url is None:
-        for i in range(len(lines)):
-            line = lines[i]
-            if line.startswith("#EXT-X-STREAM-INF:") and i + 1 < len(lines):
-                info = line
-                url = lines[i + 1]
-                try:
-                    bandwidth = int(info.split("BANDWIDTH=")[1].split(",")[0])
-                except:
-                    bandwidth = 0
-                if bandwidth > highest_bandwidth:
-                    highest_bandwidth = bandwidth
-                    best_video_info = info
-                    best_video_url = url
-
-    selected_media_lines = []
-    selected_audio_group = None
-    if best_video_info:
-        audio_group_match = audio_group_re.search(best_video_info)
-        if audio_group_match:
-            selected_audio_group = audio_group_match.group(1)
-
-    if selected_audio_group:
-        candidate_media_lines = []
-        for media_line in media_lines:
-            group_match = group_id_re.search(media_line)
-            if group_match and group_match.group(1) == selected_audio_group:
-                candidate_media_lines.append(media_line)
-
-        preferred_media_lines = []
-        if lang and lang.strip():
-            for media_line in candidate_media_lines:
-                lang_match = media_lang_re.search(media_line)
-                if lang_match:
-                    media_lang = lang_match.group(1)
-                    if (
-                        lang.startswith(media_lang)
-                        or media_lang.startswith(lang)
-                        or media_lang == lang
-                    ):
-                        preferred_media_lines.append(media_line)
-
-        selected_media_lines = preferred_media_lines
-        if not selected_media_lines:
-            selected_media_lines = [
-                line for line in candidate_media_lines if default_re.search(line)
-            ]
-        if not selected_media_lines and candidate_media_lines:
-            selected_media_lines = [candidate_media_lines[0]]
-    else:
-        selected_media_lines = media_lines
-
-    if youtube_id:
-        l.log(
-            "youtube",
-            f"[direct-manifest] {youtube_id} selected_bandwidth={highest_bandwidth} media_lines={len(selected_media_lines)}/{len(media_lines)}",
-        )
-
-    # Create the final M3U8 content
-    final_m3u8 = "#EXTM3U\n#EXT-X-INDEPENDENT-SEGMENTS\n"
-
-    # Add only EXT-X-MEDIA lines needed by the selected stream
-    for media_line in selected_media_lines:
-        final_m3u8 += f"{media_line}\n"
-
-    if subtitle_info and youtube_id:
-        subtitle_lang = subtitle_info["lang"]
-        subtitle_name = subtitle_info["name"]
-        subtitle_uri = (
-            f"/youtube/subtitles/{youtube_id}.vtt?lang={quote(subtitle_lang)}"
-        )
-        final_m3u8 += f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{subtitle_name}",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="{subtitle_lang}",URI="{subtitle_uri}"\n'
-        if best_video_info and "SUBTITLES=" not in best_video_info:
-            best_video_info = f'{best_video_info},SUBTITLES="subs"'
-
-    if best_video_info and best_video_url:
-        final_m3u8 += f"{best_video_info}\n{best_video_url}\n"
-
-    return final_m3u8
-
-
 def clean_text(text):
     # Reemplazar los caracteres especiales habituales y eliminar los que no son necesarios
 
@@ -1602,15 +1134,21 @@ def find_strm_path_for_video_id(media_folder, video_id):
 def to_strm(method):
     # reload our channel list and youtube settings config in case it's changed
     _load_config_values()
+
     l.log(
-        "youtube", f"running to_strm for the following channels: {', '.join(channels)}"
+        "youtube", f"to_strm: Running for the following channels: {', '.join(channels)}"
     )
+    l.log("youtube", f"to_strm: Going to process {videos_limit} # of videos")
+
     for youtube_channel in channels:
         yt = Youtube(youtube_channel)
+
         log_text = " --------------- "
         l.log("youtube", log_text)
         log_text = f"Working {youtube_channel}..."
         l.log("youtube", log_text)
+
+        # get videos under video limit
         videos = yt.get_results()
         channel_name = yt.channel_name
         channel_url = yt.channel_url
@@ -1634,8 +1172,6 @@ def to_strm(method):
             l.log("youtube", log_text)
             # Reverse video list so oldest videos get lower episode numbers
             videos.reverse()
-            _index_direct_neighbors(videos)
-            _prewarm_latest_direct_streams(videos)
             channel_nfo = False
             channel_folder_created = False
 
@@ -1770,7 +1306,7 @@ def to_strm(method):
                 if not os.path.exists(season_folder_path):
                     os.makedirs(season_folder_path, exist_ok=True)
 
-                if channel_url == None:
+                if channel_url is None:
                     channel_url = f"https://www.youtube.com/channel/{channel_id}"
                     channel = Youtube(channel_url)
                     images = channel.get_channel_images()
@@ -1836,80 +1372,6 @@ def to_strm(method):
             log_text = " no videos detected..."
             l.log("youtube", log_text)
     l.log("youtube", "Finished to_strm for youtube")
-
-
-def direct(youtube_id, remote_addr):
-    current_time = time.time()
-    cache_key = f"{remote_addr}_{youtube_id}"
-    # Issue #119: include the quality tag so cache busts when video_quality changes
-    stream_cache_key = f"{youtube_id}:{lang}:{_quality_cache_tag()}"
-
-    # Check if the request is already cached
-    if cache_key not in recent_requests:
-        log_text = f"[{remote_addr}] Playing {youtube_id}"
-        l.log("youtube", log_text)
-        recent_requests[cache_key] = current_time
-
-    if "-audio" not in youtube_id:
-        cached_stream = direct_stream_cache.get(stream_cache_key)
-        if cached_stream:
-            _prewarm_direct_neighbors(youtube_id)
-            return _make_direct_response(cached_stream)
-
-        cached_stream = _load_direct_stream_from_disk(youtube_id)
-        if cached_stream:
-            direct_stream_cache[stream_cache_key] = cached_stream
-            _prewarm_direct_neighbors(youtube_id)
-            return _make_direct_response(cached_stream)
-
-        filtered_content = _resolve_direct_m3u8(youtube_id)
-
-        if not filtered_content:
-            log_text = "No manifest detected. Check your cookies config. \n* This video is age-restricted; some formats may be missing without authentication. Use --cookies-from-browser or --cookies for the authentication \n* Serving SD format. Please configure your cookies appropriately to access the manifest that serves the highest quality for this video"
-            l.log("youtube", log_text)
-            command = [
-                "yt-dlp",
-                "-f",
-                _get_video_format_selector("best"),
-                "--get-url",
-                "--no-playlist",
-                "--no-warnings",
-                f"https://www.youtube.com/watch?v={youtube_id}",
-            ]
-            # Youtube().set_cookies(command)
-            Youtube().set_language(command)
-            Youtube().set_proxy(command)
-            sd_url = w.worker(command).output()
-            return redirect(sd_url.strip(), 301)
-        else:
-            direct_stream_cache[stream_cache_key] = filtered_content
-            _save_direct_stream_to_disk(youtube_id, filtered_content)
-            _prewarm_direct_neighbors(youtube_id)
-            return _make_direct_response(filtered_content)
-    else:
-        s_youtube_id = youtube_id.split("-audio")[0]
-        audio_cache_key = f"{stream_cache_key}:audio"
-        cached_audio_url = direct_stream_cache.get(audio_cache_key)
-        if cached_audio_url:
-            return redirect(cached_audio_url, 301)
-
-        command = [
-            "yt-dlp",
-            "-f",
-            "bestaudio",
-            "--get-url",
-            "--no-playlist",
-            "--no-warnings",
-            f"https://www.youtube.com/watch?v={s_youtube_id}",
-        ]
-        # Youtube().set_cookies(command)
-        Youtube().set_language(command)
-        Youtube().set_proxy(command)
-        audio_url = w.worker(command).output()
-        direct_stream_cache[audio_cache_key] = audio_url.strip()
-        return redirect(audio_url, 301)
-
-    return "Manifest URL not found or failed to redirect.", 404
 
 
 def subtitles(youtube_id):
@@ -1983,7 +1445,7 @@ def bridge(youtube_id):
             "-o",
             "-",
             "-f",
-            _get_video_format_selector("bv*+ba/b"),
+            _get_video_format_selector("bestvideo+bestaudio"),
             "--restrict-filenames",
         ]
 
