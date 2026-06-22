@@ -1,20 +1,22 @@
-import os
 import datetime
-from flask_socketio import emit
-import sys
 import io
+import os
+import sys
+import threading
 
 # Cambiar el codec por defecto a UTF-8
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", line_buffering=True)
+
 
 class log:
     def __init__(self, author, text):
         now = datetime.datetime.now()
         text = text.strip()
-        self.message = f'[{now}] {author} : {text}'
+        thread = threading.get_ident()
+        self.message = f"[{now}] | {thread} | {author.ljust(10, ' ')} : {text}"
 
-        if author == 'ui':
-            self.message = f'{text}'
+        if author == "ui":
+            self.message = f"{text}"
         if self.message != "" and self.message:
             print(self.message)
             sys.stdout.flush()  # Forzar el vaciado del buffer
@@ -24,14 +26,14 @@ class log:
         self.cleanup_log_once_a_day()
 
     def write(self):
-        with open('ytdlp2strm.log', 'a', encoding="utf-8") as file:
+        with open("ytdlp2strm.log", "a", encoding="utf-8") as file:
             if self.message != "" and self.message:
-                file.write(self.message + '\n')
+                file.write(self.message + "\n")
 
     def cleanup_log(self):
-        log_file = 'ytdlp2strm.log'
+        log_file = "ytdlp2strm.log"
         if os.path.exists(log_file):
-            with open(log_file, 'r+', encoding='utf-8', errors='ignore') as file:
+            with open(log_file, "r+", encoding="utf-8", errors="ignore") as file:
                 lines = file.readlines()
                 file.seek(0)
                 file.truncate()
@@ -43,7 +45,7 @@ class log:
                 for line in lines:
                     try:
                         # Extraer la fecha del registro
-                        timestamp_str = line.split(']')[0][1:]
+                        timestamp_str = line.split("]")[0][1:]
                         log_time = datetime.datetime.fromisoformat(timestamp_str)
 
                         # Escribir las líneas que están dentro del límite de tiempo
@@ -54,15 +56,19 @@ class log:
                         continue
 
     def cleanup_log_once_a_day(self):
-        last_cleanup_file = 'log_cleanup.txt'
+        last_cleanup_file = "log_cleanup.txt"
         now = datetime.datetime.now().date()
 
         # Verificar la fecha de la última limpieza
         if os.path.exists(last_cleanup_file):
-            with open(last_cleanup_file, 'r', encoding='utf-8', errors='ignore') as file:
+            with open(
+                last_cleanup_file, "r", encoding="utf-8", errors="ignore"
+            ) as file:
                 last_cleanup_date_str = file.read().strip()
                 try:
-                    last_cleanup_date = datetime.datetime.fromisoformat(last_cleanup_date_str).date()
+                    last_cleanup_date = datetime.datetime.fromisoformat(
+                        last_cleanup_date_str
+                    ).date()
                 except ValueError:
                     last_cleanup_date = None
         else:
@@ -71,5 +77,6 @@ class log:
         # Si no se ha limpiado hoy, realizar la limpieza y actualizar la fecha de la última limpieza
         if last_cleanup_date is None or (now - last_cleanup_date).days >= 1:
             self.cleanup_log()
-            with open(last_cleanup_file, 'w', encoding='utf-8') as file:
+            with open(last_cleanup_file, "w", encoding="utf-8") as file:
                 file.write(now.isoformat())
+

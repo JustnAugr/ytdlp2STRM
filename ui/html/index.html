@@ -85,11 +85,6 @@
           <span>General Settings</span>
         </a>
         <a class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          href="/plugins">
-          <span class="material-symbols-outlined">extension</span>
-          <span>Plugins</span>
-        </a>
-        <a class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           href="/crons">
           <span class="material-symbols-outlined">schedule</span>
           <span>CRONS</span>
@@ -130,11 +125,6 @@
             <span class="material-symbols-outlined text-sm md:text-base">restart_alt</span>
             <span class="hidden sm:inline">Reiniciar Servicio</span>
           </button>
-          <a href="https://www.buymeacoffee.com/fe80grau" target="_blank"
-            class="text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 rounded-md bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-medium transition-colors">
-            <span class="hidden sm:inline">☕ Buy me a coffee</span>
-            <span class="sm:hidden">☕</span>
-          </a>
         </div>
       </header>
       <div class="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
@@ -144,7 +134,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 md:gap-6">
               {% for value in plugins %}
               <div
-                class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between">
+                class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between min-w-fit">
                 <div>
                   <div class="flex items-center justify-between mb-3">
                     <h4 class="font-bold text-base md:text-lg text-gray-900 dark:text-white">{{ value.name }}</h4>
@@ -183,7 +173,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {% for value in crons %}
               <div
-                class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between">
+                class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between min-w-fit">
                 <div>
                   <div class="flex items-start justify-between mb-4">
                     <div>
@@ -195,12 +185,7 @@
                     </div>
                     </div>
                   <div class="mb-5">
-                    <p class="text-gray-800 dark:text-gray-200 text-lg md:text-2xl font-semibold">Every {{ value.qty }} {{
-                      value.every }} 
-                      {% if value.at != "" %}
-                        <lower>at {{ value.at }}h</lower>
-                      {% endif %}
-                     </p>
+                    <p class="text-gray-800 dark:text-gray-200 text-lg md:text-2xl font-semibold">Every {{ value.qty }} {{ value.every }} </p>
                   </div>
                   <div class="space-y-2 mb-4">
                     {% if value.do[1] in last_executions %}
