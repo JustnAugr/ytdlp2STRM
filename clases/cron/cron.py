@@ -1,10 +1,8 @@
 import hashlib
 import os
-import re
 import threading
 import time
 
-import pytz
 import schedule
 from tzlocal import get_localzone  # $ pip install tzlocal
 from watchdog.events import FileSystemEventHandler
@@ -94,60 +92,24 @@ class Cron(threading.Thread):
             # Schedule all new tasks
             for cron in self.crons:
                 try:
-                    if "timezone" in cron and cron["timezone"]:
-                        try:
-                            local_tz = pytz.timezone(cron["timezone"])
-                        except pytz.UnknownTimeZoneError:
-                            l.log(
-                                "cron",
-                                f"Unknown timezone {cron['timezone']}, using default {self.default_tz}",
-                            )
-                            local_tz = self.default_tz
-                    else:
-                        local_tz = self.default_tz
-
-                    local_tz_str = (
-                        local_tz.zone
-                        if isinstance(local_tz, pytz.BaseTzInfo)
-                        else str(local_tz)
+                    qty = int(cron["qty"]) if cron["qty"] else 1
+                except ValueError:
+                    qty = 1
+                    l.log(
+                        "cron",
+                        f"Invalid qty for cron: {cron}, using default value 1.",
                     )
 
-                    try:
-                        qty = int(cron["qty"]) if cron["qty"] else 1
-                    except ValueError:
-                        qty = 1
-                        l.log(
-                            "cron",
-                            f"Invalid qty for cron: {cron}, using default value 1.",
-                        )
+                every_method = getattr(schedule.every(qty), cron["every"])
 
-                    every_method = getattr(schedule.every(qty), cron["every"])
+                # Wrap main_cli in a thread to prevent blocking
+                task_to_do = lambda params=cron["do"]: self.start_task(main_cli, params)
 
-                    # Wrap main_cli in a thread to prevent blocking
-                    task_to_do = lambda params=cron["do"]: self.start_task(
-                        main_cli, params
-                    )
-
-                    if cron["at"]:
-                        if re.match(r"^\d{2}:\d{2}$", cron["at"]):
-                            every_method.at(cron["at"], local_tz_str).do(task_to_do)
-                            l.log(
-                                "cron",
-                                f"Scheduled task {cron['do']} at {cron['at']} {local_tz_str}.",
-                            )
-                        else:
-                            l.log(
-                                "cron",
-                                f"Invalid time format {cron['at']} for cron: {cron}.",
-                            )
-                    else:
-                        every_method.do(task_to_do)
-                        l.log(
-                            "cron",
-                            f"schedule_tasks: Scheduled task {cron['do']} every {qty} {cron['every']}.",
-                        )
-                except Exception as e:
-                    l.log("cron", f"Could not schedule cron {cron}: {e}")
+                every_method.do(task_to_do)
+                l.log(
+                    "cron",
+                    f"schedule_tasks: Scheduled task {cron['do']} every {qty} {cron['every']}.",
+                )
 
     def start_task(self, task_func, params):
         task_params = list(params)

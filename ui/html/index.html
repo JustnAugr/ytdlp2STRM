@@ -85,11 +85,6 @@
           <span>General Settings</span>
         </a>
         <a class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          href="/plugins">
-          <span class="material-symbols-outlined">extension</span>
-          <span>Plugins</span>
-        </a>
-        <a class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           href="/crons">
           <span class="material-symbols-outlined">schedule</span>
           <span>CRONS</span>
@@ -190,12 +185,7 @@
                     </div>
                     </div>
                   <div class="mb-5">
-                    <p class="text-gray-800 dark:text-gray-200 text-lg md:text-2xl font-semibold">Every {{ value.qty }} {{
-                      value.every }} 
-                      {% if value.at != "" %}
-                        <lower>at {{ value.at }}h</lower>
-                      {% endif %}
-                     </p>
+                    <p class="text-gray-800 dark:text-gray-200 text-lg md:text-2xl font-semibold">Every {{ value.qty }} {{ value.every }} </p>
                   </div>
                   <div class="space-y-2 mb-4">
                     {% if value.do[1] in last_executions %}

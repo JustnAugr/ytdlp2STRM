@@ -1,1 +1,1 @@
-[{"every": "minutes", "qty": "5", "at": "", "timezone": "America/New_York", "do": ["--media", "youtube", "--param", "bridge"]}]
+[{"every": "hours", "qty": "2", "do": ["--media", "youtube", "--param", "bridge"]}]

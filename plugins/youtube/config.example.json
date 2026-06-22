@@ -1,7 +1,7 @@
 {
 	"strm_output_folder": "/media/Youtube", 
 	"channels_list_file": "./plugins/youtube/channel_list.json", 
-	"days_dateafter": "365", 
+	"days_dateafter": "750", 
 	"videos_limit": "20", 
 	"sponsorblock": "True", 
 	"sponsorblock_cats": "sponsor", 
