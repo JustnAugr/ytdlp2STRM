@@ -1471,10 +1471,27 @@ def bridge(youtube_id):
 
         try:
             while True:
+                # get some data from yt-dlp
                 data = process.stdout.read(4096)
+
+                # if the data's no good - break out of here, stream's probably over
                 if not data:
                     break
+
+                # else send out our data
                 yield data
+
+                # poll a return code, maybe we errored out after these bytes, or we finished our process
+                process.poll()
+                if isinstance(process.returncode, int):
+                    if process.returncode > 0:
+                        l.log("youtube", f"generate: YTDLP Error, {process.returncode}")
+                    break
+
+        except Exception as e:
+            l.log(
+                "youtube", f"generate: Some error while bridging stdout of yt-dlp:\n{e}"
+            )
         finally:
             process.kill()
 
