@@ -8,8 +8,8 @@ services:
       - TZ=America/New_York
     volumes:
       - ./dev/media:/media
-      - ./config/crons.example.json:/opt/ytdlp2STRM/config/crons.json
-      - ./config/config.example.json:/opt/ytdlp2STRM/config/config.json
+      - ./config/crons.example.json:/app/config/crons.json
+      - ./config/config.example.json:/app/config/config.json
     ports:
       - 5005:5000
     restart: always

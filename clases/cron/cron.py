@@ -4,7 +4,6 @@ import threading
 import time
 
 import schedule
-from tzlocal import get_localzone  # $ pip install tzlocal
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers.polling import PollingObserver
 
@@ -45,7 +44,6 @@ class Cron(threading.Thread):
 
     def run(self):
         try:
-            self.default_tz = get_localzone()
             self.schedule_tasks()
             self.watch_config()
         except Exception as e:

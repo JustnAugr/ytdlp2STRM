@@ -15,9 +15,10 @@ dependencies = [
     "requests[socks]>=2.34.2",
     "sanitize-filename>=1.2.0",
     "schedule>=1.2.2",
-    "tzlocal>=5.3.1",
     "watchdog>=6.0.0",
     "werkzeug==2.2.2",
     "yt-dlp>=2026.6.9",
     "yt-dlp-ejs>=0.8.0",
 ]
+[tool.uv]
+exclude-newer = "7 days"
