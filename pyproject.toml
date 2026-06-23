@@ -16,7 +16,7 @@ dependencies = [
     "sanitize-filename>=1.2.0",
     "schedule>=1.2.2",
     "watchdog>=6.0.0",
-    "werkzeug>=3.1.6",
+    "werkzeug>=3.1.8",
     "yt-dlp>=2026.6.9",
     "yt-dlp-ejs>=0.8.0",
 ]
