@@ -781,7 +781,7 @@ requires-dist = [
     { name = "sanitize-filename", specifier = ">=1.2.0" },
     { name = "schedule", specifier = ">=1.2.2" },
     { name = "watchdog", specifier = ">=6.0.0" },
-    { name = "werkzeug", specifier = ">=3.1.6" },
+    { name = "werkzeug", specifier = ">=3.1.8" },
     { name = "yt-dlp", specifier = ">=2026.6.9" },
     { name = "yt-dlp-ejs", specifier = ">=0.8.0" },
 ]
