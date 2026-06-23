@@ -123,22 +123,24 @@ class Ui:
                 for line in reversed(lines):
                     try:
                         # Buscar líneas que contengan "Running <plugin> with"
-                        if "CLI : Running" in line and "with" in line:
+                        if "CLI" in line and "Running" in line and "with" in line:
                             # Extraer timestamp
                             timestamp_str = line.split("]")[0][1:]
                             log_time = datetime.datetime.fromisoformat(timestamp_str)
 
                             # Extraer nombre del plugin
                             plugin_name = (
-                                line.split("Running ")[1].split(" with")[0].strip()
+                                line.split("Running")[1].split(" with")[0].strip()
                             )
 
                             # Solo guardar si no tenemos ya una ejecución más reciente
                             if plugin_name not in last_executions:
                                 last_executions[plugin_name] = log_time
-                    except (ValueError, IndexError):
+                    except Exception as e:
+                        print(f"Error reading determining last execution:\n{e}")
                         continue
-        except Exception:
+        except Exception as e:
+            print(f"Error opening log_file to read:\n{e}")
             pass
 
         return last_executions
@@ -251,4 +253,3 @@ class Ui:
             self.handle_output("only python cli.py command can be executed from here.")
             Ui.is_running = False
             emit("command_completed", {"data": "Comando completado"}, broadcast=True)
-

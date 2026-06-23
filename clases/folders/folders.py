@@ -29,7 +29,8 @@ class folders:
                 # Check the contents of the directory in a simpler way
                 try:
                     file_list = os.listdir(folder_path)
-                except Exception:
+                except Exception as e:
+                    l.log("folder", f"Unable to listdir on {folder_path} because\n{e}")
                     return
 
                 now = time.time()

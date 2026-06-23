@@ -1,17 +1,53 @@
-FROM python:3.12.5
-WORKDIR /opt/ytdlp2STRM
-COPY . /opt/ytdlp2STRM
+#build application in the /app directory
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS builder
 
-ENV AM_I_IN_A_DOCKER_CONTAINER Yes
-ENV DOCKER_PORT 5005
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+# Omit development dependencies
+ENV UV_NO_DEV=1 
+# Disable Python downloads
+ENV UV_PYTHON_DOWNLOADS=0
+
+#needed for our python code
+ENV AM_I_IN_A_DOCKER_CONTAINER=Yes
+ENV UI_PORT=5000
 ENV TZ="America/New_York"
 
-# Actualizar el sistema e instalar ffmpeg
+WORKDIR /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-install-project -vv
+COPY . /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked
+
+# Then, use a final image without uv
+FROM python:3.13-slim-trixie
+
+# Setup a non-root user
+RUN groupadd --system --gid 1000 nonroot \
+ && useradd --system --gid 1000 --uid 1000 --create-home nonroot
+
+#install ffmpeg
 RUN apt-get update && \
     apt-get install -y ffmpeg && \
     apt-get clean
-RUN pip install --no-cache-dir --upgrade -r /opt/ytdlp2STRM/requierments.txt
-# RUN pip install deno
-# RUN pip install yt-dlp-ejs
+
+# Copy the application from the builder
+COPY --from=builder --chown=nonroot:nonroot /app /app
+
+# Place executables in the environment at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Keeps Python from buffering stdout and stderr to avoid situations where
+# the application crashes without emitting any logs due to buffering.
+ENV PYTHONUNBUFFERED=1
+
+# Use the non-root user to run our application
+USER nonroot
+
+# Use `/app` as the working directory
+WORKDIR /app
+
+# Run the FastAPI application by default
 CMD ["python", "main.py"]
-EXPOSE 5000
