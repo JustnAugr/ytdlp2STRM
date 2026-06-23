@@ -17,6 +17,15 @@ socketio = SocketIO(
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 
+# {"ytdlp2strm_host": "127.0.0.1", "ytdlp2strm_port": "5005", "ytdlp2strm_keep_old_strm": "True", "ytdlp2strm_temp_file_duration": "86400"}
+descriptions = {
+    "ytdlp2strm_host": "host that'll be used in the bridge .strm files",
+    "ytdlp2strm_port": "port that'll be used in the bridge .strm files",
+    "ytdlp2strm_keep_old_strm": "should we keep strm files once they're no longer in our videos_limit # of latest videos?",
+    "ytdlp2strm_temp_file_duration": "temp file duration for downloads",
+}
+
+
 @app.context_processor
 def inject_app_version():
     """Make `app_version` available in every Jinja template."""
@@ -60,6 +69,7 @@ def general_settings():
         config_data=config_data,
         result=result,
         request=request.method,
+        descriptions=descriptions,
     )
 
 

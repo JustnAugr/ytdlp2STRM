@@ -9,7 +9,7 @@ ENV UV_PYTHON_DOWNLOADS=0
 
 #needed for our python code
 ENV AM_I_IN_A_DOCKER_CONTAINER=Yes
-ENV DOCKER_PORT=5005
+ENV UI_PORT=5000
 ENV TZ="America/New_York"
 
 WORKDIR /app
@@ -51,4 +51,3 @@ WORKDIR /app
 
 # Run the FastAPI application by default
 CMD ["python", "main.py"]
-EXPOSE 5000

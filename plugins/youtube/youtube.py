@@ -112,11 +112,6 @@ def _load_config_values():
     host = ytdlp2strm_config["ytdlp2strm_host"]
     port = ytdlp2strm_config["ytdlp2strm_port"]
 
-    SECRET_KEY = os.environ.get("AM_I_IN_A_DOCKER_CONTAINER", False)
-    DOCKER_PORT = os.environ.get("DOCKER_PORT", False)
-    if SECRET_KEY:
-        port = DOCKER_PORT
-
     if "proxy" in config:
         proxy = config["proxy"]
         proxy_url = config["proxy_url"]
