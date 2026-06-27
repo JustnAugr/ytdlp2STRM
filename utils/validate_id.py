@@ -22,7 +22,4 @@ def is_valid_media_id(value, max_length=128):
         return False
     if not value or len(value) > max_length:
         return False
-    # Impide que el valor sea interpretado como una opcion de linea de comandos.
-    if value.startswith("-"):
-        return False
     return bool(_ALLOWED_ID_RE.match(value))
