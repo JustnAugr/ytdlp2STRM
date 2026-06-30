@@ -17,21 +17,20 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project -vv
+
 COPY . /app
+RUN chmod +x ./entrypoint.sh
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
 
-# Then, use a final image without uv
+#Then, use a final image without uv
 FROM python:3.13-slim-trixie
 
-# Setup a non-root user
-RUN groupadd --system --gid 1000 nonroot \
- && useradd --system --gid 1000 --uid 1000 --create-home nonroot
-
-#install ffmpeg
-RUN apt-get update && \
-    apt-get install -y ffmpeg && \
-    apt-get clean
+#install ffmpeg and gosu
+RUN set -eux; \
+    apt-get install --update -y ffmpeg gosu; \
+    apt-get dist-clean; \
+		gosu nobody true
 
 # Copy the application from the builder
 COPY --from=builder --chown=nonroot:nonroot /app /app
@@ -43,11 +42,8 @@ ENV PATH="/app/.venv/bin:$PATH"
 # the application crashes without emitting any logs due to buffering.
 ENV PYTHONUNBUFFERED=1
 
-# Use the non-root user to run our application
-USER nonroot
-
 # Use `/app` as the working directory
 WORKDIR /app
 
-# Run the FastAPI application by default
-CMD ["python", "main.py"]
+#call into our entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
