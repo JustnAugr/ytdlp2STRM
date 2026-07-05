@@ -27,7 +27,6 @@ descriptions = {
     "videos_limit": "how many videos to grab per channel? Doesn't delete videos unless keep_old_strm is also set",
     "sponsorblock": "should we edit downloaded videos with sponsorblock? only effects channels/videos that have been downloaded, not bridge streamed",
     "lang": "video language",
-    "episode_format": "",
     "video_quality": "quality that we'll query in ytdlp. ex: using '1440' will grab the best video upto 1440p and merge with the best audio",
     "download_subtitles": "download subtitle files and place them alongside the .strm files",
     "convert_subtitles_to_srt": "convert the download subtitle files to .srt from .vtt",

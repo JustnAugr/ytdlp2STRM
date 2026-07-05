@@ -18,7 +18,7 @@ from clases.jellyfin_notifier.jellyfin_notifier import JellyfinNotifier
 from clases.log import log as l
 from clases.nfo import nfo as n
 from clases.worker import worker as w
-from utils.episode_numbering import format_episode_title
+from utils.episode_numbering import format_episode_title, get_next_episode_number
 from utils.sanitize import sanitize
 
 recent_requests = TTLCache(maxsize=200, ttl=30)
@@ -33,7 +33,6 @@ def _load_config_values():
         days_dateafter, \
         videos_limit, \
         lang, \
-        episode_format, \
         video_quality, \
         download_subtitles, \
         convert_subtitles_to_srt, \
@@ -56,11 +55,6 @@ def _load_config_values():
         lang = config["lang"]
     except Exception:
         lang = "en"
-
-    try:
-        episode_format = config["episode_format"]
-    except Exception:
-        episode_format = "sequential"
 
     try:
         video_quality = str(config["video_quality"]).strip().lower()
@@ -1236,9 +1230,8 @@ def to_strm(method):
                     continue
 
                 # Format title with episode number (only for NEW videos)
-                use_mmdd = episode_format.lower() == "mmdd"
                 formatted_title = format_episode_title(
-                    video_name, folder_full_path, upload_date, use_mmdd, year
+                    video_name, folder_full_path, year
                 )
 
                 file_path = "{}/{}/{}/{}.{}".format(
@@ -1301,6 +1294,7 @@ def to_strm(method):
                 ## -- END
 
                 ## -- BUILD VIDEO NFO FILE
+                episode_number = get_next_episode_number(folder_full_path, year)
                 n.nfo(
                     "episode",
                     "{}/{}/{}".format(
@@ -1310,12 +1304,12 @@ def to_strm(method):
                     ),
                     {
                         "item_name": sanitize(formatted_title),
-                        "title": sanitize(formatted_title),
+                        "title": video_name,
                         "upload_date": upload_date,
                         "year": year,
                         "plot": description.replace("\n", " <br/>\n "),
                         "season": year,
-                        "episode": "",
+                        "episode": episode_number,
                         "preview": thumbnail,
                         "runtime": runtime_minutes,
                         "duration_seconds": duration_seconds or "",
