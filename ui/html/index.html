@@ -80,9 +80,9 @@
           <span>Dashboard</span>
         </a>
         <a class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          href="/general">
+          href="/settings">
           <span class="material-symbols-outlined">settings</span>
-          <span>General Settings</span>
+          <span>Settings</span>
         </a>
 				<a href="/plugin/youtube/channels"
            class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
@@ -127,13 +127,15 @@
         </div>
       </header>
       <div class="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
-        <div class="space-y-6 md:space-y-10">
-          <div>
+				<!-- box for plugins and crons -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+					<!-- plugins -->
+					<div class="w-full">
             <h3 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-white">Plugins</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 md:gap-6">
+            <div class="grid grid-cols-1 gap-4 md:gap-6">
               {% for value in plugins %}
               <div
-                class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between min-w-fit">
+                class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between gap-10">
                 <div>
                   <div class="flex items-center justify-between mb-3">
                     <h4 class="font-bold text-base md:text-lg text-gray-900 dark:text-white">{{ value.name }}</h4>
@@ -147,10 +149,6 @@
                   </div>
                 </div>
                 <div class="flex flex-col sm:flex-row items-stretch gap-2">
-                  <a href="/plugin/{{ value.name }}"
-                    class="flex-1 flex items-center justify-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors">
-                    <span class="material-symbols-outlined text-base">settings</span><span class="hidden sm:inline">Settings</span>
-                  </a>
                   <button
                     class="flex-1 flex items-center justify-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors play-btn"
                     data-media-name="{{ value.name }}" {% if value.enabled !=True %}disabled{% endif %}>
@@ -161,9 +159,10 @@
               {% endfor %}
             </div>
           </div>
-          <div>
+					<!-- crons -->
+          <div class="w-full">
             <h3 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-white">CRON Jobs</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            <div class="grid grid-cols-1 gap-4 md:gap-6">
               {% for value in crons %}
               <div
                 class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between min-w-fit">
@@ -211,24 +210,25 @@
               {% endfor %}
             </div>
           </div>
-          <div>
-            <h3 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-white">CLI Output</h3>
-            <div class="bg-black rounded-lg p-2 md:p-4 border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-              <div id="terminal" class="bg-black-900 p-2 md:p-4 rounded-md min-h-[300px] md:min-h-[400px] max-h-[500px] md:max-h-[600px] overflow-y-auto overflow-x-hidden custom-scrollbar">
-                <div id="cli-skeleton" class="space-y-2">
-                  <div class="h-4 bg-gray-700 rounded animate-pulse w-3/4"></div>
-                  <div class="h-4 bg-gray-700 rounded animate-pulse w-full"></div>
-                  <div class="h-4 bg-gray-700 rounded animate-pulse w-5/6"></div>
-                  <div class="h-4 bg-gray-700 rounded animate-pulse w-2/3"></div>
-                  <div class="h-4 bg-gray-700 rounded animate-pulse w-4/5"></div>
-                  <div class="h-4 bg-gray-700 rounded animate-pulse w-full"></div>
-                  <div class="h-4 bg-gray-700 rounded animate-pulse w-3/5"></div>
-                </div>
-                <pre class="text-xs md:text-sm text-gray-300 font-mono whitespace-pre-wrap break-all hidden"><code></code></pre>
-              </div>
-            </div>
-          </div>
         </div>
+				<!-- logging -->
+				<div>
+					<h3 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-white">CLI Output</h3>
+					<div class="bg-black rounded-lg p-2 md:p-4 border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+						<div id="terminal" class="bg-black-900 p-2 md:p-4 rounded-md min-h-[300px] md:min-h-[400px] max-h-[500px] md:max-h-[600px] overflow-y-auto overflow-x-hidden custom-scrollbar">
+							<div id="cli-skeleton" class="space-y-2">
+								<div class="h-4 bg-gray-700 rounded animate-pulse w-3/4"></div>
+								<div class="h-4 bg-gray-700 rounded animate-pulse w-full"></div>
+								<div class="h-4 bg-gray-700 rounded animate-pulse w-5/6"></div>
+								<div class="h-4 bg-gray-700 rounded animate-pulse w-2/3"></div>
+								<div class="h-4 bg-gray-700 rounded animate-pulse w-4/5"></div>
+								<div class="h-4 bg-gray-700 rounded animate-pulse w-full"></div>
+								<div class="h-4 bg-gray-700 rounded animate-pulse w-3/5"></div>
+							</div>
+							<pre class="text-xs md:text-sm text-gray-300 font-mono whitespace-pre-wrap break-all hidden"><code></code></pre>
+						</div>
+					</div>
+				</div>
       </div>
     </main>
   </div>

@@ -30,8 +30,7 @@ EPISODE_RE = re.compile(r"S(\d{1,4})E(\d{1,4})", re.IGNORECASE)
 
 DEFAULT_CONFIG = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "plugins",
-    "youtube",
+    "config",
     "config.json",
 )
 

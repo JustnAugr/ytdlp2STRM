@@ -1,6 +1,1 @@
-{
-    "ytdlp2strm_host" : "127.0.0.1",
-    "ytdlp2strm_port" : "5000",
-    "ytdlp2strm_keep_old_strm" : "True",
-    "ytdlp2strm_temp_file_duration" : "86400"
-}
+{"ytdlp2strm_host": "127.0.0.1", "ytdlp2strm_port": "5000", "ytdlp2strm_keep_old_strm": "True", "ytdlp2strm_temp_file_duration": "86400", "strm_output_folder": "/media/Youtube", "channels_list_file": "./plugins/youtube/channel_list.json", "days_dateafter": "750", "videos_limit": "1", "sponsorblock": "True", "sponsorblock_cats": "sponsor", "lang": "en", "episode_format": "sequential", "video_quality": "1440", "download_subtitles": "True", "convert_subtitles_to_srt": "True", "keep_vtt_subtitles": "True", "jellyfin_integration": "False", "jellyfin_base_url": "http://localhost:8096", "jellyfin_api_key": "", "jellyfin_library_name": "Youtube"}

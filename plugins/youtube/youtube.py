@@ -28,7 +28,6 @@ recent_requests = TTLCache(maxsize=200, ttl=30)
 # load config values so we don't need a restart
 def _load_config_values():
     global \
-        ytdlp2strm_config, \
         config, \
         channels, \
         media_folder, \
@@ -47,8 +46,7 @@ def _load_config_values():
         DOCKER_PORT, \
         proxy, \
         proxy_url
-    ytdlp2strm_config = c.config("./config/config.json").get_config()
-    config = c.config("./plugins/youtube/config.json").get_config()
+    config = c.config("./config/config.json").get_config()
     channels = c.config(config["channels_list_file"]).get_channels()
 
     media_folder = config["strm_output_folder"]
@@ -101,8 +99,8 @@ def _load_config_values():
         keep_vtt_subtitles = True
 
     source_platform = "youtube"
-    host = ytdlp2strm_config["ytdlp2strm_host"]
-    port = ytdlp2strm_config["ytdlp2strm_port"]
+    host = config["ytdlp2strm_host"]
+    port = config["ytdlp2strm_port"]
 
     if "proxy" in config:
         proxy = config["proxy"]
@@ -1157,7 +1155,7 @@ def to_strm(method):
                 "{} [{}]".format(youtube_channel_folder, channel_id)
             )
             f.folders().make_clean_folder(
-                "{}/{}".format(media_folder, channel_folder), False, ytdlp2strm_config
+                "{}/{}".format(media_folder, channel_folder), False, config
             )
 
             # Create channel NFO with correct images
@@ -1263,7 +1261,7 @@ def to_strm(method):
                             ),
                         ),
                         False,
-                        ytdlp2strm_config,
+                        config,
                     )
                     channel_folder_created = True
 
