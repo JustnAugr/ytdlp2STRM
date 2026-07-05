@@ -62,8 +62,6 @@ def get_episode_number_from_date(upload_date: str, use_mmdd: bool = False) -> st
 def format_episode_title(
     title: str,
     folder_path: str,
-    upload_date: str = None,
-    use_mmdd: bool = False,
     year: str = None,
 ) -> str:
     """
@@ -78,21 +76,6 @@ def format_episode_title(
     Returns:
         The formatted title with S{year}E{XX} prefix
     """
-    current_year = datetime.now().year
 
-    if use_mmdd and upload_date:
-        # Use MMDD format from upload date
-        episode_number = get_episode_number_from_date(upload_date, use_mmdd=True)
-        # Extract year from upload_date
-        try:
-            if "-" in upload_date:
-                year = datetime.strptime(upload_date, "%Y-%m-%d").year
-            else:
-                year = datetime.strptime(upload_date, "%Y%m%d").year
-        except:
-            year = current_year
-        return f"S{year}E{episode_number} - {title}"
-    else:
-        # Use sequential numbering
-        next_episode = get_next_episode_number(folder_path, year)
-        return f"S{year}E{next_episode} - {title}"
+    next_episode = get_next_episode_number(folder_path, year)
+    return f"S{year}E{next_episode} - {title}"
