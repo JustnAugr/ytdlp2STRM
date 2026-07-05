@@ -5,8 +5,6 @@
 	"videos_limit": "20", 
 	"sponsorblock": "True", 
 	"sponsorblock_cats": "sponsor", 
-	"cookies": "", 
-	"cookie_value": "", 
 	"lang": "en", 
 	"episode_format": "sequential", 
 	"video_quality": "1440", 

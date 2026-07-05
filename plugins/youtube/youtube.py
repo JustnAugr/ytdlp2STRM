@@ -34,8 +34,6 @@ def _load_config_values():
         media_folder, \
         days_dateafter, \
         videos_limit, \
-        cookies, \
-        cookie_value, \
         lang, \
         episode_format, \
         video_quality, \
@@ -56,12 +54,6 @@ def _load_config_values():
     media_folder = config["strm_output_folder"]
     days_dateafter = config["days_dateafter"]
     videos_limit = config["videos_limit"]
-    try:
-        cookies = config["cookies"]
-        cookie_value = config["cookie_value"]
-    except Exception:
-        cookies = "cookies-from-browser"
-        cookie_value = "chrome"
 
     try:
         lang = config["lang"]
@@ -270,7 +262,6 @@ class Youtube:
             "--dump-json",
             self.channel_url,
         ]
-        # self.set_cookies(command)
         self.set_language(command)
         result = w.worker(command).output()
         videos = []
@@ -310,7 +301,6 @@ class Youtube:
             "--no-warning",
             "--dump-json",
         ]
-        # self.set_cookies(command)
         self.set_language(command)
 
         if config["days_dateafter"] == "0":
@@ -355,7 +345,6 @@ class Youtube:
             "--no-warning",
             "--dump-json",
         ]
-        # self.set_cookies(command)
         self.set_language(command)
 
         if config["days_dateafter"] == "0":
@@ -404,7 +393,6 @@ class Youtube:
             "--dump-json",
             f"{cu}",
         ]
-        # self.set_cookies(command)
         self.set_language(command)
 
         result = w.worker(command).output()
@@ -442,7 +430,6 @@ class Youtube:
             "--dump-json",
             self.channel_url,
         ]
-        # self.set_cookies(command)
         self.set_language(command)
         result = w.worker(command).output()
         videos = []
@@ -486,7 +473,6 @@ class Youtube:
             "--dump-json",
             f"{cu}",
         ]
-        # self.set_cookies(command)
         self.set_language(command)
         result = w.worker(command).output()
         # Procesa la salida JSON
@@ -545,7 +531,6 @@ class Youtube:
                 "no-youtube-channel-redirect",
                 f"{self.channel_url}",
             ]
-        # self.set_cookies(command)
         self.set_language(command)
         self.set_proxy(command)
         channel_name = w.worker(command).output().strip().replace('"', "")
@@ -571,7 +556,6 @@ class Youtube:
                 "no-youtube-channel-redirect",
                 f"{self.channel_url}",
             ]
-            # self.set_cookies(command)
             self.set_language(command)
             self.set_proxy(command)
             channel_name = w.worker(command).output().strip().replace('"', "")
@@ -595,7 +579,6 @@ class Youtube:
                 "--output",
                 '"{}/{}.description"'.format(media_folder, sanitize(self.channel_name)),
             ]
-            # self.set_cookies(command)
             self.set_language(command)
             self.set_proxy(command)
             command = command + [
@@ -626,7 +609,6 @@ class Youtube:
                 '"{}/{}.description"'.format(media_folder, sanitize(self.channel_name)),
                 self.channel_url,
             ]
-            # self.set_cookies(command)
             self.set_language(command)
             self.set_proxy(command)
             command = command + [
@@ -674,7 +656,6 @@ class Youtube:
             "0",
             self.channel_url,
         ]
-        # self.set_cookies(command)
         self.set_language(command)
         self.set_proxy(command)
         landscape = None
@@ -713,12 +694,6 @@ class Youtube:
             if proxy_url != "":
                 command.append("--proxy")
                 command.append(proxy_url)
-
-    def set_cookies(self, command):
-        # Only add cookies if cookie_value is not empty
-        if cookie_value and cookie_value.strip():
-            command.append(f"--{cookies}")
-            command.append(cookie_value)
 
     def set_language(self, command):
         """Configura el idioma para YouTube según la configuración.
@@ -795,7 +770,6 @@ def get_subtitle_info(youtube_id, preferred_lang=None):
         "--no-warnings",
         f"https://www.youtube.com/watch?v={youtube_id}",
     ]
-    # Youtube().set_cookies(command)
     Youtube().set_language(command)
     Youtube().set_proxy(command)
     try:
@@ -1066,7 +1040,6 @@ def download_subtitles_for_video(youtube_id, file_path):
         f"{base_path}.%(ext)s",
         f"https://www.youtube.com/watch?v={youtube_id}",
     ]
-    # Youtube().set_cookies(command)
     Youtube().set_language(command)
     Youtube().set_proxy(command)
     try:
@@ -1401,7 +1374,6 @@ def bridge(youtube_id):
     file_size = None
     try:
         command_info = ["yt-dlp", "--dump-json", "--no-warnings", s_youtube_id_url]
-        # Youtube().set_cookies(command_info)
         Youtube().set_proxy(command_info)
         info = json.loads(w.worker(command_info).output())
 
@@ -1449,7 +1421,6 @@ def bridge(youtube_id):
 
         command.append(s_youtube_id_url)
 
-        # Youtube().set_cookies(command)
         Youtube().set_language(command)
         Youtube().set_proxy(command)
 
@@ -1546,7 +1517,6 @@ def download(youtube_id):
             "--restrict-filenames",
             s_youtube_id,
         ]
-    # Youtube().set_cookies(command)
     Youtube().set_language(command)
     Youtube().set_proxy(command)
     if "-audio" in youtube_id:
@@ -1561,7 +1531,6 @@ def download(youtube_id):
         "--restrict-filenames",
         "{}".format(youtube_id),
     ]
-    # Youtube().set_cookies(filename_command)
     Youtube().set_language(filename_command)
     filename = w.worker(filename_command).output()
     return send_file(os.path.join(temp_dir, filename))
