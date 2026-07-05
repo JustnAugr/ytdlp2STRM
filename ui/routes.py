@@ -17,10 +17,25 @@ logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 # {"ytdlp2strm_host": "127.0.0.1", "ytdlp2strm_port": "5005", "ytdlp2strm_keep_old_strm": "True", "ytdlp2strm_temp_file_duration": "86400"}
 descriptions = {
-    "ytdlp2strm_host": "host that'll be used in the bridge .strm files",
-    "ytdlp2strm_port": "port that'll be used in the bridge .strm files",
+    "ytdlp2strm_host": "host that'll be used in the output .strm files",
+    "ytdlp2strm_port": "port that'll be used in the output .strm files",
     "ytdlp2strm_keep_old_strm": "should we keep strm files once they're no longer in our videos_limit # of latest videos?",
     "ytdlp2strm_temp_file_duration": "temp file duration for downloads",
+    "strm_output_folder": "where should .strm files be created?",
+    "channels_list_file": "where our channel list file is",
+    "days_dateafer": "how many days back should we check for youtube videos for each channel?",
+    "videos_limit": "how many videos to grab per channel? Doesn't delete videos unless keep_old_strm is also set",
+    "sponsorblock": "should we edit downloaded videos with sponsorblock? only effects channels/videos that have been downloaded, not bridge streamed",
+    "lang": "video language",
+    "episode_format": "",
+    "video_quality": "quality that we'll query in ytdlp. ex: using '1440' will grab the best video upto 1440p and merge with the best audio",
+    "download_subtitles": "download subtitle files and place them alongside the .strm files",
+    "convert_subtitles_to_srt": "convert the download subtitle files to .srt from .vtt",
+    "keep_vtt_subtitles": "keep the original vtt sub files",
+    "jellyfin_integration": "integration with jellyfin to refresh library after ytdlpstrm runs",
+    "jellyfin_base_url": "url and port of jellyfin instance",
+    "jellyfin_api_key": "API token for connecting",
+    "jellyfin_library_name": "library to refresh",
 }
 
 

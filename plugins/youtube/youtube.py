@@ -8,7 +8,6 @@ import time
 from datetime import datetime
 from urllib.parse import urljoin
 
-import requests
 from cachetools import TTLCache
 from flask import Response, request, send_file, stream_with_context
 from werkzeug.datastructures import Headers
@@ -1204,9 +1203,7 @@ def to_strm(method):
                 if method == "iframe":
                     file_content = f"https://www.youtube.com/watch?v={video_id}"
                 else:
-                    file_content = (
-                        f"http://{host}:{port}/{source_platform}/{method}/{video_id}"
-                    )
+                    file_content = f"http://{host}:{port}/{source_platform}/{video_id}"
 
                 channel_folder = sanitize(
                     "{} [{}]".format(youtube_channel_folder, channel_id)
@@ -1338,27 +1335,6 @@ def to_strm(method):
             log_text = " no videos detected..."
             l.log("youtube", log_text)
     l.log("youtube", "Finished to_strm for youtube")
-
-
-def subtitles(youtube_id):
-    subtitle_lang = request.args.get("lang")
-    subtitle_info = get_subtitle_info(youtube_id, subtitle_lang)
-    if not subtitle_info:
-        return "Subtitles not found.", 404
-
-    try:
-        response = requests.get(subtitle_info["url"], timeout=15)
-        if response.status_code != 200:
-            return "Subtitles not found.", 404
-        vtt_text = _fix_vtt_alignment(response.text)
-        flask_response = Response(vtt_text, mimetype="text/vtt")
-        flask_response.headers["Content-Type"] = "text/vtt; charset=utf-8"
-        flask_response.headers["Cache-Control"] = "public, max-age=3600"
-        flask_response.headers["Access-Control-Allow-Origin"] = "*"
-        return flask_response
-    except Exception as e:
-        l.log("youtube", f"Error serving subtitles for {youtube_id}: {e}")
-        return "Subtitles not found.", 404
 
 
 def bridge(youtube_id):
