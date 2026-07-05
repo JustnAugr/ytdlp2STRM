@@ -46,7 +46,7 @@ def index():
 
 
 # Ruta para las opciones generales
-@app.route("/general", methods=["GET", "POST"])
+@app.route("/settings", methods=["GET", "POST"])
 def general_settings():
 
     result = False
@@ -108,37 +108,6 @@ def crons_settings():
 
     return render_template(
         "crons.html", result=result, crons=crons, request=request.method
-    )
-
-
-# Ruta para editar config y channels un plugin
-@app.route("/plugin/<plugin>", methods=["GET", "POST"])
-def plugin(plugin):
-    plugins = _ui.plugins
-    selected_plugin = list(filter(lambda p: p["name"] == plugin, plugins))
-    result = False
-    if request.method == "POST":
-        # Obtener los valores del formulario
-        config_data = {}
-        config_data["config_file"] = "{}/{}/{}".format(
-            "./plugins", selected_plugin[0]["name"], "config.json"
-        )
-        for key, value in request.form.items():
-            config_data[key] = value
-
-        _ui.plugins = config_data
-
-        if config_data:
-            result = True
-
-        plugins = _ui.plugins
-        selected_plugin = list(filter(lambda p: p["name"] == plugin, plugins))
-
-    return render_template(
-        "plugin_settings.html",
-        plugin=selected_plugin[0],
-        result=result,
-        request=request.method,
     )
 
 

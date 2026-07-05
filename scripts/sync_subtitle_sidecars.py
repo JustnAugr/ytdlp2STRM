@@ -1,13 +1,11 @@
 import argparse
 import json
-import os
 import re
 import shutil
 import sys
 from pathlib import Path
 
-
-DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "plugins" / "youtube" / "config.json"
+DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config" / "config.json"
 EPISODE_PREFIX_RE = re.compile(r"^S\d{1,4}E\d{1,4}\s+-\s+", re.IGNORECASE)
 LANG_SUFFIX_RE = re.compile(r"^[a-z]{2,3}(?:-[a-z0-9]+)?$", re.IGNORECASE)
 
@@ -43,7 +41,9 @@ def build_strm_index(directory):
 
 def target_for_subtitle(subtitle_path, strm_path, lang):
     if lang:
-        return strm_path.with_name(f"{strm_path.stem}.{lang}{subtitle_path.suffix.lower()}")
+        return strm_path.with_name(
+            f"{strm_path.stem}.{lang}{subtitle_path.suffix.lower()}"
+        )
     return strm_path.with_suffix(subtitle_path.suffix.lower())
 
 
@@ -62,10 +62,24 @@ def main():
     parser = argparse.ArgumentParser(
         description="Sync subtitle sidecar names with existing STRM names in the same folder"
     )
-    parser.add_argument("--root", default=load_default_root(), help="Root folder to scan recursively")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be moved without writing files")
-    parser.add_argument("--overwrite", action="store_true", help="Overwrite target subtitle if it already exists")
-    parser.add_argument("--delete-old", action="store_true", help="Deprecated: files are always moved (original is removed after move)")
+    parser.add_argument(
+        "--root", default=load_default_root(), help="Root folder to scan recursively"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be moved without writing files",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite target subtitle if it already exists",
+    )
+    parser.add_argument(
+        "--delete-old",
+        action="store_true",
+        help="Deprecated: files are always moved (original is removed after move)",
+    )
     parser.add_argument("--verbose", action="store_true", help="Show skipped files")
     args = parser.parse_args()
 
@@ -114,24 +128,32 @@ def main():
 
             if len(matches) > 1:
                 stats["ambiguous"] += 1
-                print(f"[ambiguous] {subtitle_path.relative_to(root)} -> {len(matches)} matches")
+                print(
+                    f"[ambiguous] {subtitle_path.relative_to(root)} -> {len(matches)} matches"
+                )
                 continue
 
             target_path = target_for_subtitle(subtitle_path, matches[0], lang)
             if target_path.exists() and not args.overwrite:
                 stats["target_exists"] += 1
                 if args.verbose:
-                    print(f"[exists] {subtitle_path.relative_to(root)} -> {target_path.relative_to(root)}")
+                    print(
+                        f"[exists] {subtitle_path.relative_to(root)} -> {target_path.relative_to(root)}"
+                    )
                 continue
 
             if args.dry_run:
                 stats["would_move"] += 1
-                print(f"[move] {subtitle_path.relative_to(root)} -> {target_path.relative_to(root)}")
+                print(
+                    f"[move] {subtitle_path.relative_to(root)} -> {target_path.relative_to(root)}"
+                )
                 continue
 
             shutil.move(str(subtitle_path), str(target_path))
             stats["moved"] += 1
-            print(f"[moved] {subtitle_path.relative_to(root)} -> {target_path.relative_to(root)}")
+            print(
+                f"[moved] {subtitle_path.relative_to(root)} -> {target_path.relative_to(root)}"
+            )
         except Exception as e:
             stats["errors"] += 1
             print(f"[error] {subtitle_path}: {e}")

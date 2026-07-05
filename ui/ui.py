@@ -63,8 +63,7 @@ class Ui:
                 path = "{}/{}".format("./plugins", name)
 
                 try:
-                    config = c.config("{}/{}".format(path, "config.json")).get_config()
-
+                    config = c.config("./config/config.json").get_config()
                     channels = c.config(config["channels_list_file"]).get_channels()
                 except:
                     # Si no se puede cargar la config, usar valores por defecto
