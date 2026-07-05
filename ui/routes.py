@@ -1,7 +1,5 @@
 import json
 import logging
-import platform
-import subprocess
 
 from flask import jsonify, render_template, request
 from flask_socketio import SocketIO
@@ -217,53 +215,3 @@ def handle_connect():
 @socketio.on("execute_command")
 def handle_command(command):
     _ui.handle_command(command)
-
-
-# Ruta para reiniciar el servicio ytdlp2STRM
-@app.route("/restart_service", methods=["POST"])
-def restart_service():
-    """
-    Reinicia el servicio ytdlp2STRM según el sistema operativo:
-    - Windows: Reinicia la tarea programada 'ytdlp2STRM' de forma asíncrona
-    - Linux: Reinicia el servicio systemd 'ytdlp2strm.service' de forma asíncrona
-    """
-    try:
-        os_type = platform.system()
-
-        def run_restart():
-            # Pequeña espera para asegurar que la respuesta JSON llegue al cliente
-            time.sleep(2)
-            if os_type == "Windows":
-                # Comando para reiniciar la tarea en Windows
-                cmd = 'schtasks /End /TN "ytdlp2STRM" && schtasks /Run /TN "ytdlp2STRM"'
-                subprocess.Popen(
-                    cmd,
-                    shell=True,
-                    creationflags=subprocess.DETACHED_PROCESS
-                    | subprocess.CREATE_NEW_PROCESS_GROUP,
-                )
-            elif os_type == "Linux":
-                # Comando para reiniciar el servicio en Linux
-                subprocess.Popen(["sudo", "systemctl", "restart", "ytdlp2strm.service"])
-
-        # Ejecutar el reinicio en un hilo separado para no bloquear la respuesta
-        import threading
-        import time
-
-        threading.Thread(target=run_restart, daemon=True).start()
-
-        return jsonify(
-            {
-                "success": True,
-                "message": f"Reinicio del servicio iniciado ({os_type}). El sistema estará disponible en unos segundos.",
-                "os": os_type,
-            }
-        )
-
-    except Exception as e:
-        return jsonify(
-            {
-                "success": False,
-                "message": f"Error al intentar iniciar el reinicio: {str(e)}",
-            }
-        ), 500

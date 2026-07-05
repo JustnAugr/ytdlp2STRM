@@ -1,6 +1,5 @@
 import os
 import signal
-import sys
 import time
 from threading import Event, Thread
 
@@ -14,8 +13,6 @@ from clases.cron import cron as cron
 from clases.folders import folders as f
 from clases.log import log as l
 
-# Variables globales para controlar el reinicio y parada
-restart_flag = False
 stop_event = None
 
 
@@ -57,15 +54,6 @@ def signal_handler(sig, frame):
     log_text = "Threads and process terminated."
     l.log("main", log_text)
     exit(0)  # Using exit to ensure immediate termination
-
-
-def restart_application():
-    """Reinicia la aplicación usando os.execv()"""
-    global restart_flag, stop_event
-    restart_flag = True
-    log_text = "Restart requested, stopping threads..."
-    l.log("main", log_text)
-    stop_event.set()
 
 
 if __name__ == "__main__":
@@ -120,13 +108,5 @@ if __name__ == "__main__":
         log_text = f"Exception in main loop: {e}"
         l.log("main", log_text)
 
-    # Si se solicitó reinicio, ejecutar el reinicio
-    if restart_flag:
-        log_text = "Restarting application..."
-        l.log("main", log_text)
-        time.sleep(1)  # Dar tiempo para que los logs se escriban
-        python = sys.executable
-        os.execv(python, [python] + sys.argv)
-    else:
-        log_text = "Exiting main."
-        l.log("main", log_text)
+    log_text = "Exiting main."
+    l.log("main", log_text)
