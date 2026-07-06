@@ -3,9 +3,6 @@ import re
 import shlex
 import subprocess
 import threading
-import time
-
-import requests
 
 from classes.log import log as l
 
@@ -143,52 +140,3 @@ class worker:
                 l.log("worker", log_text)
         rc = process.poll()
         return rc
-
-    def preload(self):
-        global is_preloading
-
-        current_dir = os.getcwd()
-
-        # Construyes la ruta hacia la carpeta 'temp' dentro del directorio actual
-        temp_dir = os.path.join(current_dir, "temp")
-
-        # Intenta adquirir el Lock
-        if not preload_lock.acquire(blocking=False):
-            # Si no se puede adquirir el Lock, significa que otra instancia ya está ejecutando preload_video
-            return
-
-        # Verifica si ya se está ejecutando la función
-        if is_preloading:
-            preload_lock.release()  # No olvides liberar el Lock si decides no proceder
-            return
-
-        is_preloading = True  # Marca el inicio de la ejecución
-
-        def download_and_cancel():
-            try:
-                with requests.get(self.command, stream=True) as r:
-                    time.sleep(
-                        5
-                    )  # Esperamos 5 segundos y luego cancelamos la solicitud
-            except:
-                log_text = "error on preloading {}".format(self.command)
-                l.log("worker", log_text)
-
-        video_id = self.command.split("_")[-1]
-
-        isin = False
-        # Iterar sobre todos los archivos en la carpeta 'temp'
-        for filename in os.listdir(temp_dir):
-            # Comprobar si el crunchroll_id está en el nombre del archivo
-            if video_id in filename:
-                isin = True
-                # Si necesitas hacer algo más que imprimir, este es el lugar.
-                # Por ejemplo, podrías romper el bucle con 'break' si solo te interesa saber si al menos uno existe
-
-        if not isin:
-            preload_thread = threading.Thread(target=download_and_cancel)
-            preload_thread.start()
-
-        is_preloading = False  # Restablece el estado
-        preload_lock.release()  # Libera el Lock
-

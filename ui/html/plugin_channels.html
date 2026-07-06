@@ -197,6 +197,9 @@
               <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {{ plugin.path }}/channels_list.json
               </p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Enter a youtube channel or playlist link below
+              </p>
             </div>
             <form method="post" class="p-6">
               <div id="plugin-fields" class="space-y-3">
@@ -204,10 +207,21 @@
                 <div class="flex gap-2">
                   <input
                     type="text"
-                    name="channels"
-                    value="{{ field }}"
+                    name="channel[]"
+                    value="{{ field.channel }}"
                     class="flex-1 px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   />
+                  <select
+                    name="method[]"
+                    class="flex-1 px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  >
+                    <!-- prettier-ignore -->
+                    <option value="default" {% if field.method == 'default' or not field.method or field.method == "" %} selected  {% endif %}>default</option>
+                    <!-- prettier-ignore -->
+                    <option value="bridge" {% if field.method == 'bridge' %} selected  {% endif %}>bridge</option>
+                    <!-- prettier-ignore -->
+                    <option value="download" {% if field.method == 'download' %} selected  {% endif %}>download</option>
+                  </select>
                   <button
                     type="button"
                     onclick="this.parentNode.remove()"
@@ -266,7 +280,26 @@
           newInput.className =
             "flex-1 px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors";
           newInput.type = "text";
-          newInput.name = "channels";
+          newInput.name = "channel[]";
+
+          var newSelect = document.createElement("select");
+          newSelect.className =
+            "flex-1 px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors";
+          newSelect.type = "text";
+          newSelect.name = "method[]";
+          var defaultOption = document.createElement("option");
+          defaultOption.value = "default";
+          defaultOption.selected = "selected";
+          defaultOption.text = "default";
+          newSelect.appendChild(defaultOption);
+          var bridgeOption = document.createElement("option");
+          bridgeOption.value = "bridge";
+          bridgeOption.text = "bridge";
+          newSelect.appendChild(bridgeOption);
+          var downloadOption = document.createElement("option");
+          downloadOption.value = "download";
+          downloadOption.text = "download";
+          newSelect.appendChild(downloadOption);
 
           var deleteButton = document.createElement("button");
           deleteButton.type = "button";
@@ -280,6 +313,7 @@
           });
 
           newField.appendChild(newInput);
+          newField.appendChild(newSelect);
           newField.appendChild(deleteButton);
           pluginFields.appendChild(newField);
         });
