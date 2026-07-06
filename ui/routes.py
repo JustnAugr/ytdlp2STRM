@@ -15,12 +15,10 @@ socketio = SocketIO(
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 
-# {"ytdlp2strm_host": "127.0.0.1", "ytdlp2strm_port": "5005", "ytdlp2strm_keep_old_strm": "True", "ytdlp2strm_temp_file_duration": "86400"}
 descriptions = {
     "ytdlp2strm_host": "host that'll be used in the output .strm files",
     "ytdlp2strm_port": "port that'll be used in the output .strm files",
     "ytdlp2strm_keep_old_strm": "should we keep strm files once they're no longer in our videos_limit # of latest videos?",
-    "ytdlp2strm_temp_file_duration": "temp file duration for downloads",
     "strm_output_folder": "where should .strm files be created?",
     "channels_list_file": "where our channel list file is",
     "days_dateafter": "how many days back should we check for youtube videos for each channel?",

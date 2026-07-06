@@ -10,15 +10,15 @@ from urllib.parse import quote, urljoin
 
 import requests
 from cachetools import TTLCache
+from flask import Response, request, send_file, stream_with_context
+from werkzeug.datastructures import Headers
+
 from classes.config import config as c
 from classes.folders import folders as f
 from classes.jellyfin_notifier.jellyfin_notifier import JellyfinNotifier
 from classes.log import log as l
 from classes.nfo import nfo as n
 from classes.worker import worker as w
-from flask import Response, request, send_file, stream_with_context
-from werkzeug.datastructures import Headers
-
 from utils.episode_numbering import format_episode_title, get_next_episode_number
 from utils.sanitize import sanitize
 
@@ -1226,9 +1226,27 @@ def to_strm(method):
                 if existing_strm_path:
                     l.log(
                         "youtube",
-                        f"Video {video_id} already exists at {existing_strm_path}",
+                        f"Video STRM file {video_id} already exists at {existing_strm_path}",
                     )
                     download_subtitles_for_video(video_id, existing_strm_path)
+
+                    if method == "download":
+                        # create our download directory if it doesn't already exist
+                        current_dir = os.getcwd()
+                        video_dir = os.path.join(current_dir, "downloads", video_id)
+
+                        if os.path.exists(video_dir):
+                            l.log(
+                                "youtube",
+                                "not re-downloading video as I see it already exists",
+                            )
+                        else:
+                            l.log(
+                                "youtube",
+                                f"Downloading {video_id} as I see it doesn't exist even though our STRM file exists",
+                            )
+                            download(video_id, channel_name)
+
                     continue
 
                 # Format title with episode number (only for NEW videos)
@@ -1321,7 +1339,9 @@ def to_strm(method):
 
                 if not os.path.isfile(file_path):
                     f.folders().write_file(file_path, file_content)
+
                 download_subtitles_for_video(video_id, file_path)
+                download(video_id, channel_folder)
 
             # Notify Jellyfin/Emby after processing all videos for this channel
             jellyfin_notifier = JellyfinNotifier(config)
@@ -1759,6 +1779,39 @@ def stream(youtube_id, remote_addr):
     s_youtube_id_url = f"https://www.youtube.com/watch?v={s_youtube_id}"
     l.log("youtube", f"stream: called on {s_youtube_id_url}", newline=True)
 
+    try:
+        # create our download directory if it doesn't already exist
+        video_dir = os.path.join(os.getcwd(), "downloads", s_youtube_id)
+
+        if os.path.exists(video_dir):
+            videos = [
+                f
+                for f in os.listdir(video_dir)
+                if (os.path.isfile(os.path.join(video_dir, f)) and s_youtube_id in f)
+            ]
+            if len(videos):
+                video = os.path.join(video_dir, videos[0])
+                l.log(
+                    "youtube",
+                    f"download: found video matching requested ID, serving it now: {video}",
+                )
+                return send_file(video)
+            else:
+                l.log(
+                    "youtube",
+                    "download: found video_dir but dir didn't containg a matching video!",
+                )
+        else:
+            l.log(
+                "youtube", "download: no video_dir found for this ID under downloads/"
+            )
+
+    except Exception as e:
+        l.log(
+            "youtube",
+            f"download: failed to find downloaded video, going to continue but error was: {e}",
+        )
+
     # do we have a direct version of this already cached at our requested quality?
     stream_cache_key = f"{youtube_id}:{lang}:{_quality_cache_tag()}"
     l.log("youtube", f"stream: will use stream_cache_key: {stream_cache_key}")
@@ -1811,19 +1864,36 @@ def stream(youtube_id, remote_addr):
     return bridge(youtube_id, s_youtube_id_url, video_format, file_size, duration)
 
 
-def download(youtube_id):
+def download(youtube_id, channel):
     s_youtube_id = youtube_id.split("-audio")[0]
-    current_dir = os.getcwd()
 
-    # Construyes la ruta hacia la carpeta 'temp' dentro del directorio actual
-    temp_dir = os.path.join(current_dir, "temp")
+    # create our download directory if it doesn't already exist
+    current_dir = os.getcwd()
+    download_dir = os.path.join(current_dir, "downloads")
+    if not os.path.exists(download_dir):
+        l.log("youtube", f"download: creating folder {download_dir}")
+        os.makedirs(download_dir, exist_ok=True)
+
+    # create a video dir
+    video_dir = os.path.join(download_dir, youtube_id)
+    if not os.path.exists(video_dir):
+        l.log("youtube", f"download: creating folder {video_dir}")
+        os.makedirs(video_dir, exist_ok=True)
+
+    # where we'll save the file
+    filepath = os.path.join(video_dir, youtube_id)
+
+    l.log(
+        "youtube", f"download: going to download {s_youtube_id} for channel {channel}"
+    )
+
     if config["sponsorblock"]:
         command = [
             "yt-dlp",
             "-f",
             "bv*+ba+ba.2",
             "-o",
-            os.path.join(temp_dir, "%(title)s.%(ext)s"),
+            f"{filepath}.%(ext)s",
             "--sponsorblock-remove",
             config["sponsorblock_cats"],
             "--restrict-filenames",
@@ -1835,27 +1905,20 @@ def download(youtube_id):
             "-f",
             "bv*+ba+ba.2",
             "-o",
-            os.path.join(temp_dir, "%(title)s.%(ext)s"),
+            f"{filepath}.%(ext)s",
             "--restrict-filenames",
             s_youtube_id,
         ]
     Youtube().set_language(command)
     Youtube().set_proxy(command)
-    if "-audio" in youtube_id:
-        command[2] = "bestaudio"
 
+    start = time.time()
     w.worker(command).call()
+    end = time.time()
 
-    filename_command = [
-        "yt-dlp",
-        "--print",
-        "filename",
-        "--restrict-filenames",
-        "{}".format(youtube_id),
-    ]
-    Youtube().set_language(filename_command)
-    filename = w.worker(filename_command).output()
-    return send_file(os.path.join(temp_dir, filename))
+    l.log("youtube", f"download: completed download in {end - start}s of {filepath}")
+
+    return filepath
 
 
 def subtitles(youtube_id):
