@@ -2,7 +2,7 @@
   "ytdlp2strm_host": "127.0.0.1",
   "ytdlp2strm_port": "5000",
   "ytdlp2strm_keep_old_strm": "True",
-  "strm_output_folder": "/media/Youtube",
+  "strm_output_folder": "/media",
   "channels_list_file": "./plugins/youtube/channel_list.json",
   "days_dateafter": "750",
   "videos_limit": "1",
@@ -18,4 +18,3 @@
   "jellyfin_api_key": "",
   "jellyfin_library_name": "Youtube"
 }
-
