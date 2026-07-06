@@ -6,8 +6,9 @@ import re
 import subprocess
 import time
 from datetime import datetime
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
+import requests
 from cachetools import TTLCache
 from flask import Response, request, send_file, stream_with_context
 from werkzeug.datastructures import Headers
@@ -21,7 +22,8 @@ from clases.worker import worker as w
 from utils.episode_numbering import format_episode_title, get_next_episode_number
 from utils.sanitize import sanitize
 
-recent_requests = TTLCache(maxsize=200, ttl=30)
+direct_stream_cache = TTLCache(maxsize=500, ttl=1800)
+direct_stream_cache_hours = 4
 
 
 # load config values so we don't need a restart
@@ -1331,25 +1333,314 @@ def to_strm(method):
     l.log("youtube", "Finished to_strm for youtube")
 
 
-def bridge(youtube_id):
-    s_youtube_id = youtube_id.split("-audio")[0]
-    s_youtube_id_url = f"https://www.youtube.com/watch?v={s_youtube_id}"
+def _make_direct_response(m3u8_content):
+    flask_response = Response(m3u8_content, mimetype="application/vnd.apple.mpegurl")
+    flask_response.headers["Content-Type"] = (
+        "application/vnd.apple.mpegurl; charset=utf-8"
+    )
+    flask_response.headers["Content-Disposition"] = 'inline; filename="index.m3u8"'
+    max_age_seconds = max(1, direct_stream_cache_hours) * 3600
+    flask_response.headers["Cache-Control"] = f"public, max-age={max_age_seconds}"
+    flask_response.headers["Accept-Ranges"] = "bytes"
+    flask_response.headers["Access-Control-Allow-Origin"] = "*"
+    flask_response.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+    flask_response.headers["Access-Control-Allow-Headers"] = "Range"
+    return flask_response
 
-    l.log("youtube", f"bridge: stream requested on {s_youtube_id_url}")
 
-    # Get info for duration and size
-    duration = None
-    file_size = None
+def filter_and_modify_bandwidth(m3u8_content, subtitle_info=None, youtube_id=None):
+    lines = m3u8_content.splitlines()
+
+    # min height we'll grab: 1080, 1440, etc - else we'll fall back to bridge in stream()
+    min_height = _get_video_quality_height()
+    l.log("youtube", f"direct: going to be filtering to a minimum of {min_height}p")
+
+    highest_bandwidth = 0
+    best_video_info = None
+    best_video_url = None
+
+    media_lines = []
+
+    # Issue #110 / PR #115: YouTube auto-dubbed videos expose per-language
+    # variants in the HLS manifest via YT-EXT-AUDIO-CONTENT-ID (e.g. "en-US.3").
+    # When at least one stream declares a language, prefer streams matching the
+    # configured `lang`; otherwise keep the pure highest-bandwidth logic.
+    yt_audio_lang_re = re.compile(r'YT-EXT-AUDIO-CONTENT-ID="([^."]+)')
+    audio_group_re = re.compile(r'\bAUDIO="([^"]+)"')
+    group_id_re = re.compile(r'\bGROUP-ID="([^"]+)"')
+    media_lang_re = re.compile(r'\bLANGUAGE="([^"]+)"')
+    default_re = re.compile(r"\bDEFAULT=YES\b")
+    sel_by_lang = False
+    if lang and lang.strip():
+        for line in lines:
+            if line.startswith("#EXT-X-STREAM-INF:"):
+                match = yt_audio_lang_re.search(line)
+                if match and match.group(1):
+                    sel_by_lang = True
+                    break
+
+    for i in range(len(lines)):
+        line = lines[i]
+
+        if line.startswith("#EXT-X-STREAM-INF:") and i + 1 < len(lines):
+            info = line
+            url = lines[i + 1]
+            try:
+                bandwidth = int(info.split("BANDWIDTH=")[1].split(",")[0])
+            except Exception as e:
+                l.log("youtube", f"Exception parsing m3u8 bandwidth: {e}")
+                bandwidth = 0
+
+            desired_lang = not sel_by_lang
+            if sel_by_lang:
+                match = yt_audio_lang_re.search(info)
+                if match and match.group(1):
+                    info_lang = match.group(1)
+                    # Handle "en" vs "en-US" in either direction
+                    if (
+                        lang.startswith(info_lang)
+                        or info_lang.startswith(lang)
+                        or info_lang == lang
+                    ):
+                        desired_lang = True
+
+            stream_height = _get_stream_inf_height(info)
+            desired_quality = (not min_height) or (
+                min_height and stream_height and stream_height >= min_height
+            )
+
+            if bandwidth > highest_bandwidth and desired_lang and desired_quality:
+                highest_bandwidth = bandwidth
+                best_video_info = info
+                best_video_url = url
+
+        if line.startswith("#EXT-X-MEDIA:"):
+            media_lines.append(line)
+
+    # Fallback: if language filtering rejected everything (e.g. the configured
+    # lang is not present at all in the manifest), relax the filter and pick
+    # the highest bandwidth variant so playback is not broken.
+    if best_video_url is None:
+        for i in range(len(lines)):
+            line = lines[i]
+            if line.startswith("#EXT-X-STREAM-INF:") and i + 1 < len(lines):
+                info = line
+                url = lines[i + 1]
+                try:
+                    bandwidth = int(info.split("BANDWIDTH=")[1].split(",")[0])
+                except Exception as e:
+                    l.log("youtube", f"Exception parsing m3u8 bandwidth: {e}")
+                    bandwidth = 0
+                stream_height = _get_stream_inf_height(info)
+                desired_quality = (not min_height) or (
+                    min_height and stream_height and stream_height >= min_height
+                )
+                if bandwidth > highest_bandwidth and desired_quality:
+                    highest_bandwidth = bandwidth
+                    best_video_info = info
+                    best_video_url = url
+
+    if best_video_url is None:
+        return None
+
+    selected_media_lines = []
+    selected_audio_group = None
+    if best_video_info:
+        audio_group_match = audio_group_re.search(best_video_info)
+        if audio_group_match:
+            selected_audio_group = audio_group_match.group(1)
+
+    if selected_audio_group:
+        candidate_media_lines = []
+        for media_line in media_lines:
+            group_match = group_id_re.search(media_line)
+            if group_match and group_match.group(1) == selected_audio_group:
+                candidate_media_lines.append(media_line)
+
+        preferred_media_lines = []
+        if lang and lang.strip():
+            for media_line in candidate_media_lines:
+                lang_match = media_lang_re.search(media_line)
+                if lang_match:
+                    media_lang = lang_match.group(1)
+                    if (
+                        lang.startswith(media_lang)
+                        or media_lang.startswith(lang)
+                        or media_lang == lang
+                    ):
+                        preferred_media_lines.append(media_line)
+
+        selected_media_lines = preferred_media_lines
+        if not selected_media_lines:
+            selected_media_lines = [
+                line for line in candidate_media_lines if default_re.search(line)
+            ]
+        if not selected_media_lines and candidate_media_lines:
+            selected_media_lines = [candidate_media_lines[0]]
+    else:
+        selected_media_lines = media_lines
+
+    if youtube_id:
+        l.log(
+            "youtube",
+            f"direct: found matching manifest for {youtube_id}: {best_video_info}",
+        )
+
+    # Create the final M3U8 content
+    final_m3u8 = "#EXTM3U\n#EXT-X-INDEPENDENT-SEGMENTS\n"
+
+    # Add only EXT-X-MEDIA lines needed by the selected stream
+    for media_line in selected_media_lines:
+        final_m3u8 += f"{media_line}\n"
+
+    if subtitle_info and youtube_id:
+        subtitle_lang = subtitle_info["lang"]
+        subtitle_name = subtitle_info["name"]
+        subtitle_uri = (
+            f"/youtube/subtitles/{youtube_id}.vtt?lang={quote(subtitle_lang)}"
+        )
+        final_m3u8 += f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{subtitle_name}",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="{subtitle_lang}",URI="{subtitle_uri}"\n'
+        if best_video_info and "SUBTITLES=" not in best_video_info:
+            best_video_info = f'{best_video_info},SUBTITLES="subs"'
+
+    if best_video_info and best_video_url:
+        final_m3u8 += f"{best_video_info}\n{best_video_url}\n"
+
+    return final_m3u8
+
+
+def _get_m3u8_from_info_json(full_info_json):
+    m3u8_url = None
     try:
-        command_info = ["yt-dlp", "--dump-json", "--no-warnings", s_youtube_id_url]
-        Youtube().set_proxy(command_info)
-        info = json.loads(w.worker(command_info).output())
-
-        duration = info.get("duration")
-        file_size = info.get("filesize") or info.get("filesize_approx")
+        for fmt in full_info_json["formats"]:
+            if "manifest_url" in fmt.keys():
+                m3u8_url = fmt["manifest_url"]
+                break
     except Exception as e:
-        l.log("youtube", f"Error getting info: {e}")
+        l.log("youtube", f"Exception while loading json and getting manifest_url: {e}")
+        pass
 
+    return m3u8_url
+
+
+def _get_info_json(youtube_id, video_quality, extractor_args=None):
+    command_info = [
+        "yt-dlp",
+        "-j",
+        "--no-playlist",
+        "--no-warnings",
+        "-f",
+        video_quality,
+        f"https://www.youtube.com/watch?v={youtube_id}",
+    ]
+
+    if extractor_args is not None:
+        command_info.append("--extractor-args")
+        command_info.append(extractor_args)
+
+    Youtube().set_language(command_info)
+    Youtube().set_proxy(command_info)
+    full_info_json = json.loads(w.worker(command_info).output())
+
+    return full_info_json
+
+
+def _resolve_direct_m3u8(youtube_id, full_info_json):
+    m3u8_url = None
+    subtitle_info = None
+    try:
+        subtitle_info = get_subtitle_info_from_video_info(full_info_json)
+        m3u8_url = _get_m3u8_from_info_json(full_info_json)
+    except Exception as e:
+        l.log(
+            "youtube",
+            f"direct: Exception while loading json and getting manifest_url: {e}",
+        )
+        pass
+
+    if not m3u8_url:
+        # retry 3 times
+        for retry in range(1, 4):
+            # sleep a few seconds before retrying again
+            time.sleep(retry)
+            l.log(
+                "youtube",
+                f"direct: No manifest m3u8 urls found in info json, going to retry: {retry}",
+            )
+
+            # hail mary? or just a better strategy?
+            extractor_args = None
+            if retry > 1:
+                extractor_args = "youtube:player-client=default,web_safari"
+
+            full_info_json = _get_info_json(youtube_id, "best", extractor_args)
+
+            try:
+                subtitle_info = get_subtitle_info_from_video_info(full_info_json)
+                m3u8_url = _get_m3u8_from_info_json(full_info_json)
+            except Exception as e:
+                l.log(
+                    "youtube",
+                    f"direct: Exception while loading json and getting manifest_url: {e}",
+                )
+
+            # break once we've found a valid m3u8 url
+            if m3u8_url:
+                break
+
+    # if no valid m3u8 even after retries, we finally fail and fallback to bridging from stream()
+    if not m3u8_url:
+        l.log(
+            "youtube",
+            "direct: No manifest m3u8 urls found in info json even after retry",
+        )
+        return None
+
+    response = requests.get(m3u8_url, timeout=15)
+    if response.status_code != 200:
+        l.log(
+            "youtube",
+            f"direct: Error! Got status code {response.status_code} while querying m3u8_url: {m3u8_url}",
+        )
+        return None
+
+    l.log("youtube", "direct: found and read an m3u8_url, going to filter it")
+
+    response.encoding = "utf-8"
+    filtered_content = filter_and_modify_bandwidth(
+        response.text, subtitle_info, youtube_id
+    )
+
+    # if we have nothing after filtering, return early
+    if not filtered_content:
+        return filtered_content
+
+    # direct serve the media playlist
+    variant_url = None
+    for line in filtered_content.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            variant_url = stripped
+            break
+    if variant_url:
+        try:
+            variant_response = requests.get(variant_url, timeout=15)
+            if variant_response.status_code == 200:
+                variant_response.encoding = "utf-8"
+                media_playlist = _make_media_playlist_absolute(
+                    variant_response.text, variant_url
+                )
+                filtered_content = media_playlist
+        except Exception as e:
+            l.log(
+                "youtube",
+                f"direct: Error downloading media playlist for {youtube_id}: {e}",
+            )
+
+    return filtered_content
+
+
+def bridge(youtube_id, s_youtube_id_url, video_format, file_size, duration):
     # Parse Range Header
     range_header = request.headers.get("Range", None)
     byte_start = 0
@@ -1380,7 +1671,7 @@ def bridge(youtube_id):
             "-o",
             "-",
             "-f",
-            _get_video_format_selector("bestvideo+bestaudio"),
+            video_format,
             "--restrict-filenames",
         ]
 
@@ -1393,6 +1684,9 @@ def bridge(youtube_id):
         Youtube().set_proxy(command)
 
         if "-audio" in youtube_id:
+            l.log(
+                "youtube", "bridge: found audio in youtube id, using bestaudio format"
+            )
             try:
                 f_index = command.index("-f")
                 command[f_index + 1] = "bestaudio"
@@ -1457,6 +1751,66 @@ def bridge(youtube_id):
     return response
 
 
+def stream(youtube_id, remote_addr):
+    # reload config values in case requested quality has changed
+    _load_config_values()
+
+    s_youtube_id = youtube_id.split("-audio")[0]
+    s_youtube_id_url = f"https://www.youtube.com/watch?v={s_youtube_id}"
+    l.log("youtube", f"stream: called on {s_youtube_id_url}", newline=True)
+
+    # do we have a direct version of this already cached at our requested quality?
+    stream_cache_key = f"{youtube_id}:{lang}:{_quality_cache_tag()}"
+    l.log("youtube", f"stream: will use stream_cache_key: {stream_cache_key}")
+    cached_stream = direct_stream_cache.get(stream_cache_key)
+    if cached_stream:
+        l.log(
+            "youtube",
+            f"stream: Found cached_stream using stream_cache_key: {stream_cache_key}",
+        )
+        return _make_direct_response(cached_stream)
+
+    # if not let's continue with grabbing it from ytdlp
+    # first we get the video JSON - to be used by direct and bridge
+    # Get info for duration and size
+    duration = None
+    file_size = None
+    video_format = _get_video_format_selector("bestvideo+bestaudio")
+    try:
+        info = _get_info_json(s_youtube_id, video_format)
+
+        duration = info.get("duration")
+        file_size = info.get("filesize") or info.get("filesize_approx")
+    except Exception as e:
+        l.log("youtube", f"stream: Error getting info: {e}")
+
+    # youtube won't serve a direct HLS stream containing video+audio at anything above 1080p
+    # so let's short-circuit and go straight to our transcoded merged bridge stream
+    min_height = _get_video_quality_height()
+    if min_height > 1080:
+        l.log(
+            "youtube",
+            f"stream: going direct to bridge mode given our min_height is > 1080 at: {min_height}",
+        )
+        return bridge(youtube_id, s_youtube_id_url, video_format, file_size, duration)
+
+    # let's try direct first, can we find a direct m3u8?
+    direct_m3u8 = _resolve_direct_m3u8(youtube_id, info)
+
+    # we have a matching direct stream! let's return it
+    if direct_m3u8:
+        l.log(
+            "youtube",
+            "stream: caching and serving it now",
+        )
+        direct_stream_cache[stream_cache_key] = direct_m3u8
+        return _make_direct_response(direct_m3u8)
+
+    # else let's fall back our bridge
+    l.log("youtube", "no direct m3u8 found, falling back to bridge mode")
+    return bridge(youtube_id, s_youtube_id_url, video_format, file_size, duration)
+
+
 def download(youtube_id):
     s_youtube_id = youtube_id.split("-audio")[0]
     current_dir = os.getcwd()
@@ -1502,3 +1856,24 @@ def download(youtube_id):
     Youtube().set_language(filename_command)
     filename = w.worker(filename_command).output()
     return send_file(os.path.join(temp_dir, filename))
+
+
+def subtitles(youtube_id):
+    subtitle_lang = request.args.get("lang")
+    subtitle_info = get_subtitle_info(youtube_id, subtitle_lang)
+    if not subtitle_info:
+        return "Subtitles not found.", 404
+
+    try:
+        response = requests.get(subtitle_info["url"], timeout=15)
+        if response.status_code != 200:
+            return "Subtitles not found.", 404
+        vtt_text = _fix_vtt_alignment(response.text)
+        flask_response = Response(vtt_text, mimetype="text/vtt")
+        flask_response.headers["Content-Type"] = "text/vtt; charset=utf-8"
+        flask_response.headers["Cache-Control"] = "public, max-age=3600"
+        flask_response.headers["Access-Control-Allow-Origin"] = "*"
+        return flask_response
+    except Exception as e:
+        l.log("youtube", f"Error serving subtitles for {youtube_id}: {e}")
+        return "Subtitles not found.", 404

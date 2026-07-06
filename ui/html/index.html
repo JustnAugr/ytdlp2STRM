@@ -1,240 +1,367 @@
-<!DOCTYPE html>
+<!doctype html>
 <html class="dark" lang="en">
-
-<head>
-  <meta charset="utf-8" />
-  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>ytdlpstrmfork - Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
-  <script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            primary: "#1d4ed8",
-            "background-light": "#f3f4f6",
-            "background-dark": "#111827",
-          },
-          fontFamily: {
-            display: ["Inter", "sans-serif"],
-          },
-          borderRadius: {
-            DEFAULT: "0.5rem",
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>ytdlpstrmfork - Dashboard</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#1d4ed8",
+              "background-light": "#f3f4f6",
+              "background-dark": "#111827",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.5rem",
+            },
           },
         },
-      },
-    };
-  </script>
-  <style type="text/tailwindcss">
-    @layer base {
-      body {
-        @apply font-display;
+      };
+    </script>
+    <style type="text/tailwindcss">
+      @layer base {
+        body {
+          @apply font-display;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          @apply bg-gray-200 dark:bg-gray-700;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          @apply bg-gray-400 dark:bg-gray-500;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          @apply bg-gray-500 dark:bg-gray-400;
+        }
       }
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+    </style>
+    <style>
+      @media (max-width: 768px) {
+        .sidebar {
+          transform: translateX(-100%);
+          transition: transform 0.3s ease-in-out;
+        }
+        .sidebar.open {
+          transform: translateX(0);
+        }
       }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        @apply bg-gray-200 dark:bg-gray-700;
-        border-radius: 10px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        @apply bg-gray-400 dark:bg-gray-500;
-        border-radius: 10px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        @apply bg-gray-500 dark:bg-gray-400;
-      }
-    }
-  </style>
-  <style>
-    @media (max-width: 768px) {
-      .sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.3s ease-in-out;
-      }
-      .sidebar.open {
-        transform: translateX(0);
-      }
-    }
-  </style>
-</head>
+    </style>
+  </head>
 
-<body class="bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-200 min-h-screen">
-  <!-- Mobile overlay -->
-  <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
-  
-  <div class="flex h-screen">
-    <aside id="sidebar" class="sidebar fixed md:static w-64 bg-white dark:bg-gray-900 flex flex-col border-r border-gray-200 dark:border-gray-800 z-50 h-full">
-      <div class="h-20 flex items-center px-6 border-b border-gray-200 dark:border-gray-800">
-        <h1 class="text-xl font-bold text-gray-900 dark:text-white">ytdlpstrmfork</h1>
-      </div>
-      <nav class="flex-1 px-4 py-6 space-y-2">
-        <a class="flex items-center gap-3 px-4 py-2 rounded bg-blue-100 dark:bg-blue-900/50 text-primary dark:text-blue-300 font-semibold"
-          href="/">
-          <span class="material-symbols-outlined">dashboard</span>
-          <span>Dashboard</span>
-        </a>
-        <a class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          href="/settings">
-          <span class="material-symbols-outlined">settings</span>
-          <span>Settings</span>
-        </a>
-				<a href="/plugin/youtube/channels"
-           class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-          <span class="material-symbols-outlined">video_library</span>
-          <span>Channels</span>
-				</a>
-        <a class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          href="/crons">
-          <span class="material-symbols-outlined">schedule</span>
-          <span>CRONS</span>
-        </a>
-        <a class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          href="/log">
-          <span class="material-symbols-outlined">description</span>
-          <span>Logs</span>
-        </a>
-      </nav>
-      <div class="p-4 border-t border-gray-200 dark:border-gray-800">
-        <p class="text-sm text-gray-500 dark:text-gray-400">Version {{ app_version }}</p>
-        <a href="https://tube.natasys.net" target="_blank"
-          class="text-xs text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-blue-300 transition-colors">
-          <span class="inline-flex items-center gap-1">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-            </svg>
-            NataTube
-          </span>
-        </a>
-      </div>
-    </aside>
-    <main class="flex-1 flex flex-col w-full md:w-auto">
-      <header
-        class="h-16 md:h-20 flex items-center justify-between px-4 md:px-8 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-        <div class="flex items-center gap-3">
-          <button id="menu-toggle" class="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-            <span class="material-symbols-outlined text-gray-700 dark:text-gray-300">menu</span>
-          </button>
-          <h2 class="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
+  <body
+    class="bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-200 min-h-screen"
+  >
+    <!-- Mobile overlay -->
+    <div
+      id="sidebar-overlay"
+      class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"
+    ></div>
+
+    <div class="flex h-screen">
+      <aside
+        id="sidebar"
+        class="sidebar fixed md:static w-64 bg-white dark:bg-gray-900 flex flex-col border-r border-gray-200 dark:border-gray-800 z-50 h-full"
+      >
+        <div
+          class="h-20 flex items-center px-6 border-b border-gray-200 dark:border-gray-800"
+        >
+          <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+            ytdlpstrmfork
+          </h1>
         </div>
-        <div class="flex items-center gap-2 md:gap-4">
+        <nav class="flex-1 px-4 py-6 space-y-2">
+          <a
+            class="flex items-center gap-3 px-4 py-2 rounded bg-blue-100 dark:bg-blue-900/50 text-primary dark:text-blue-300 font-semibold"
+            href="/"
+          >
+            <span class="material-symbols-outlined">dashboard</span>
+            <span>Dashboard</span>
+          </a>
+          <a
+            class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            href="/settings"
+          >
+            <span class="material-symbols-outlined">settings</span>
+            <span>Settings</span>
+          </a>
+          <a
+            href="/plugin/youtube/channels"
+            class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            <span class="material-symbols-outlined">video_library</span>
+            <span>Channels</span>
+          </a>
+          <a
+            class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            href="/crons"
+          >
+            <span class="material-symbols-outlined">schedule</span>
+            <span>CRONS</span>
+          </a>
+          <a
+            class="flex items-center gap-3 px-4 py-2 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            href="/log"
+          >
+            <span class="material-symbols-outlined">description</span>
+            <span>Logs</span>
+          </a>
+        </nav>
+        <div class="p-4 border-t border-gray-200 dark:border-gray-800">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            Version {{ app_version }}
+          </p>
+          <a
+            href="https://tube.natasys.net"
+            target="_blank"
+            class="text-xs text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-blue-300 transition-colors"
+          >
+            <span class="inline-flex items-center gap-1">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+                />
+              </svg>
+              NataTube
+            </span>
+          </a>
         </div>
-      </header>
-      <div class="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
-				<!-- box for plugins and crons -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-					<!-- plugins -->
-					<div class="w-full">
-            <h3 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-white">Plugins</h3>
-            <div class="grid grid-cols-1 gap-4 md:gap-6">
-              {% for value in plugins %}
-              <div
-                class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between gap-10">
-                <div>
-                  <div class="flex items-center justify-between mb-3">
-                    <h4 class="font-bold text-base md:text-lg text-gray-900 dark:text-white">{{ value.name }}</h4>
-                    {% if value.enabled == True %}
-                    <span
-                      class="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">ENABLED</span>
-                    {% else %}
-                    <span
-                      class="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">DISABLED</span>
-                    {% endif %}
-                  </div>
-                </div>
-                <div class="flex flex-col sm:flex-row items-stretch gap-2">
-                  <button
-                    class="flex-1 flex items-center justify-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors play-btn"
-                    data-media-name="{{ value.name }}" {% if value.enabled !=True %}disabled{% endif %}>
-                    <span class="material-symbols-outlined text-base">play_arrow</span>Run
-                  </button>
-                </div>
-              </div>
-              {% endfor %}
-            </div>
+      </aside>
+      <main class="flex-1 flex flex-col w-full md:w-auto">
+        <header
+          class="h-16 md:h-20 flex items-center justify-between px-4 md:px-8 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
+        >
+          <div class="flex items-center gap-3">
+            <button
+              id="menu-toggle"
+              class="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              <span
+                class="material-symbols-outlined text-gray-700 dark:text-gray-300"
+                >menu</span
+              >
+            </button>
+            <h2
+              class="text-lg md:text-2xl font-bold text-gray-900 dark:text-white"
+            >
+              Dashboard
+            </h2>
           </div>
-					<!-- crons -->
-          <div class="w-full">
-            <h3 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-white">CRON Jobs</h3>
-            <div class="grid grid-cols-1 gap-4 md:gap-6">
-              {% for value in crons %}
-              <div
-                class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between min-w-fit">
-                <div>
-                  <div class="flex items-start justify-between mb-4">
-                    <div>
-                      <div
-                        class="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium text-sm inline-block">
-                        {{ value.do[1] }}</div>
-                      <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">Mode: <span
-                          class="font-semibold text-gray-700 dark:text-gray-300">{{ value.do[3] }}</span></div>
+          <div class="flex items-center gap-2 md:gap-4"></div>
+        </header>
+        <div class="flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar">
+          <!-- box for plugins and crons -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <!-- plugins -->
+            <div class="w-full">
+              <h3
+                class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-white"
+              >
+                Plugins
+              </h3>
+              <div class="grid grid-cols-1 gap-4 md:gap-6">
+                {% for value in plugins %}
+                <div
+                  class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between gap-10"
+                >
+                  <div>
+                    <div class="flex items-center justify-between mb-3">
+                      <h4
+                        class="font-bold text-base md:text-lg text-gray-900 dark:text-white"
+                      >
+                        {{ value.name }}
+                      </h4>
+                      {% if value.enabled == True %}
+                      <span
+                        class="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                        >ENABLED</span
+                      >
+                      {% else %}
+                      <span
+                        class="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+                        >DISABLED</span
+                      >
+                      {% endif %}
                     </div>
-                    </div>
-                  <div class="mb-5">
-                    <p class="text-gray-800 dark:text-gray-200 text-lg md:text-2xl font-semibold">Every {{ value.qty }} {{ value.every }} </p>
                   </div>
-                  <div class="space-y-2 mb-4">
-                    {% if value.do[1] in last_executions %}
-                    <div class="p-3 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                      <div class="flex items-center gap-2 text-xs text-blue-800 dark:text-blue-300">
-                        <span class="material-symbols-outlined text-sm">history</span>
-                        <span class="font-medium">Last execution:</span>
+                  <div class="flex flex-col sm:flex-row items-stretch gap-2">
+                    <button
+                      class="flex-1 flex items-center justify-center gap-1 md:gap-2 text-xs md:text-sm px-2 md:px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors play-btn"
+                      data-media-name="{{ value.name }}"
+                      {%
+                      if
+                      value.enabled
+                      !="True"
+                      %}disabled{%
+                      endif
+                      %}
+                    >
+                      <span class="material-symbols-outlined text-base"
+                        >play_arrow</span
+                      >Run
+                    </button>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <!-- crons -->
+            <div class="w-full">
+              <h3
+                class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-white"
+              >
+                CRON Jobs
+              </h3>
+              <div class="grid grid-cols-1 gap-4 md:gap-6">
+                {% for value in crons %}
+                <div
+                  class="bg-white dark:bg-gray-900 p-4 md:p-5 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between min-w-fit"
+                >
+                  <div>
+                    <div class="flex items-start justify-between mb-4">
+                      <div>
+                        <div
+                          class="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium text-sm inline-block"
+                        >
+                          {{ value.do[1] }}
+                        </div>
+                        <div
+                          class="mt-2 text-xs text-gray-500 dark:text-gray-400"
+                        >
+                          Mode:
+                          <span
+                            class="font-semibold text-gray-700 dark:text-gray-300"
+                            >{{ value.do[3] }}</span
+                          >
+                        </div>
                       </div>
-                      <p class="text-xs text-blue-700 dark:text-blue-400 mt-1 ml-6">
-                        {{ last_executions[value.do[1]].strftime('%Y-%m-%d %H:%M:%S') }}
+                    </div>
+                    <div class="mb-5">
+                      <p
+                        class="text-gray-800 dark:text-gray-200 text-lg md:text-2xl font-semibold"
+                      >
+                        Every {{ value.qty }} {{ value.every }}
                       </p>
                     </div>
-                    {% else %}
-                    <div class="p-3 rounded-md bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-                      <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                        <span class="material-symbols-outlined text-sm">info</span>
-                        <span>No executions found</span>
+                    <div class="space-y-2 mb-4">
+                      {% if value.do[1] in last_executions %}
+                      <div
+                        class="p-3 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+                      >
+                        <div
+                          class="flex items-center gap-2 text-xs text-blue-800 dark:text-blue-300"
+                        >
+                          <span class="material-symbols-outlined text-sm"
+                            >history</span
+                          >
+                          <span class="font-medium">Last execution:</span>
+                        </div>
+                        <p
+                          class="text-xs text-blue-700 dark:text-blue-400 mt-1 ml-6"
+                        >
+                          {{ last_executions[value.do[1]].strftime('%Y-%m-%d
+                          %H:%M:%S') }}
+                        </p>
                       </div>
+                      {% else %}
+                      <div
+                        class="p-3 rounded-md bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700"
+                      >
+                        <div
+                          class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400"
+                        >
+                          <span class="material-symbols-outlined text-sm"
+                            >info</span
+                          >
+                          <span>No executions found</span>
+                        </div>
+                      </div>
+                      {% endif %}
                     </div>
-                    {% endif %}
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <a
+                      href="/crons"
+                      class="flex-1 flex items-center justify-center gap-2 text-sm px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+                    >
+                      <span class="material-symbols-outlined text-base"
+                        >edit</span
+                      >Edit
+                    </a>
                   </div>
                 </div>
-                <div class="flex items-center gap-2">
-                  <a href="/crons"
-                    class="flex-1 flex items-center justify-center gap-2 text-sm px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors">
-                    <span class="material-symbols-outlined text-base">edit</span>Edit
-                  </a>
-                </div>
+                {% endfor %}
               </div>
-              {% endfor %}
+            </div>
+          </div>
+          <!-- logging -->
+          <div>
+            <h3
+              class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-white"
+            >
+              CLI Output
+            </h3>
+            <div
+              class="bg-black rounded-lg p-2 md:p-4 border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden"
+            >
+              <div
+                id="terminal"
+                class="bg-black-900 p-2 md:p-4 rounded-md min-h-[300px] md:min-h-[400px] max-h-[500px] md:max-h-[600px] overflow-y-auto overflow-x-hidden custom-scrollbar"
+              >
+                <div id="cli-skeleton" class="space-y-2">
+                  <div
+                    class="h-4 bg-gray-700 rounded animate-pulse w-3/4"
+                  ></div>
+                  <div
+                    class="h-4 bg-gray-700 rounded animate-pulse w-full"
+                  ></div>
+                  <div
+                    class="h-4 bg-gray-700 rounded animate-pulse w-5/6"
+                  ></div>
+                  <div
+                    class="h-4 bg-gray-700 rounded animate-pulse w-2/3"
+                  ></div>
+                  <div
+                    class="h-4 bg-gray-700 rounded animate-pulse w-4/5"
+                  ></div>
+                  <div
+                    class="h-4 bg-gray-700 rounded animate-pulse w-full"
+                  ></div>
+                  <div
+                    class="h-4 bg-gray-700 rounded animate-pulse w-3/5"
+                  ></div>
+                </div>
+                <pre
+                  class="text-xs md:text-sm text-gray-300 font-mono whitespace-pre-wrap break-all hidden"
+                ><code></code></pre>
+              </div>
             </div>
           </div>
         </div>
-				<!-- logging -->
-				<div>
-					<h3 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-white">CLI Output</h3>
-					<div class="bg-black rounded-lg p-2 md:p-4 border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-						<div id="terminal" class="bg-black-900 p-2 md:p-4 rounded-md min-h-[300px] md:min-h-[400px] max-h-[500px] md:max-h-[600px] overflow-y-auto overflow-x-hidden custom-scrollbar">
-							<div id="cli-skeleton" class="space-y-2">
-								<div class="h-4 bg-gray-700 rounded animate-pulse w-3/4"></div>
-								<div class="h-4 bg-gray-700 rounded animate-pulse w-full"></div>
-								<div class="h-4 bg-gray-700 rounded animate-pulse w-5/6"></div>
-								<div class="h-4 bg-gray-700 rounded animate-pulse w-2/3"></div>
-								<div class="h-4 bg-gray-700 rounded animate-pulse w-4/5"></div>
-								<div class="h-4 bg-gray-700 rounded animate-pulse w-full"></div>
-								<div class="h-4 bg-gray-700 rounded animate-pulse w-3/5"></div>
-							</div>
-							<pre class="text-xs md:text-sm text-gray-300 font-mono whitespace-pre-wrap break-all hidden"><code></code></pre>
-						</div>
-					</div>
-				</div>
-      </div>
-    </main>
-  </div>
-  
-  <script src="/mobile-menu.js"></script>
-  <script src="/cli.js?v=3"></script>
-</body>
+      </main>
+    </div>
 
+    <script src="/mobile-menu.js"></script>
+    <script src="/cli.js?v=3"></script>
+  </body>
 </html>

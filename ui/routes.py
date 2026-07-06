@@ -23,11 +23,12 @@ descriptions = {
     "ytdlp2strm_temp_file_duration": "temp file duration for downloads",
     "strm_output_folder": "where should .strm files be created?",
     "channels_list_file": "where our channel list file is",
-    "days_dateafer": "how many days back should we check for youtube videos for each channel?",
+    "days_dateafter": "how many days back should we check for youtube videos for each channel?",
     "videos_limit": "how many videos to grab per channel? Doesn't delete videos unless keep_old_strm is also set",
     "sponsorblock": "should we edit downloaded videos with sponsorblock? only effects channels/videos that have been downloaded, not bridge streamed",
+    "sponsorblock_cats": "what categories of sponsorblock to use",
     "lang": "video language",
-    "video_quality": "quality that we'll query in ytdlp. ex: using '1440' will grab the best video upto 1440p and merge with the best audio",
+    "video_quality": "quality that we'll query in ytdlp. ex: using '1440' will grab the best video up to 1440p and merge with the best audio, '1080' will grab the best quality upto 1080",
     "download_subtitles": "download subtitle files and place them alongside the .strm files",
     "convert_subtitles_to_srt": "convert the download subtitle files to .srt from .vtt",
     "keep_vtt_subtitles": "keep the original vtt sub files",
@@ -35,6 +36,16 @@ descriptions = {
     "jellyfin_base_url": "url and port of jellyfin instance",
     "jellyfin_api_key": "API token for connecting",
     "jellyfin_library_name": "library to refresh",
+}
+
+options = {
+    "ytdlp2strm_keep_old_strm": ["True", "False"],
+    "sponsorblock": ["True", "False"],
+    "download_subtitles": ["True", "False"],
+    "convert_subtitles_to_srt": ["True", "False"],
+    "keep_vtt_subtitles": ["True", "False"],
+    "jellyfin_integration": ["True", "False"],
+    "video_quality": ["1080", "1440", "2160"],
 }
 
 
@@ -82,6 +93,7 @@ def general_settings():
         result=result,
         request=request.method,
         descriptions=descriptions,
+        options=options,
     )
 
 

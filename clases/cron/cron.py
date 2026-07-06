@@ -191,6 +191,7 @@ class ConfigChangeHandler(FileSystemEventHandler):
         l.log(
             "cron",
             f"ConfigChangeHandler received an event of {event.event_type} on {event.src_path}",
+            newline=True,
         )
         if event.event_type == "modified" and os.path.abspath(
             event.src_path

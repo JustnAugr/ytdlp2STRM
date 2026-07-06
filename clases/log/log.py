@@ -9,7 +9,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", line_bufferin
 
 
 class log:
-    def __init__(self, author, text):
+    def __init__(self, author, text, newline=False):
         now = datetime.datetime.now()
         text = text.strip()
         thread = threading.get_ident()
@@ -18,6 +18,8 @@ class log:
         if author == "ui":
             self.message = f"{text}"
         if self.message != "" and self.message:
+            if newline:
+                print("")
             print(self.message)
             sys.stdout.flush()  # Forzar el vaciado del buffer
             self.write()
@@ -79,4 +81,3 @@ class log:
             self.cleanup_log()
             with open(last_cleanup_file, "w", encoding="utf-8") as file:
                 file.write(now.isoformat())
-
