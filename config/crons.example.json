@@ -1,1 +1,7 @@
-[{"every": "hours", "qty": "2", "do": ["--media", "youtube", "--param", "bridge"]}]
+[
+  {
+    "every": "hours",
+    "qty": "2",
+    "do": ["--media", "youtube", "--param", "bridge"]
+  }
+]
