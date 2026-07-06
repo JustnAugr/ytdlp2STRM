@@ -7,8 +7,8 @@ import schedule
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers.polling import PollingObserver
 
-from clases.config import config as c
-from clases.log import log as l
+from classes.config import config as c
+from classes.log import log as l
 from cli import main as main_cli
 
 # -- LOAD CONFIG AND CHANNELS FILES

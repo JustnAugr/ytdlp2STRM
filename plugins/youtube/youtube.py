@@ -10,15 +10,15 @@ from urllib.parse import quote, urljoin
 
 import requests
 from cachetools import TTLCache
+from classes.config import config as c
+from classes.folders import folders as f
+from classes.jellyfin_notifier.jellyfin_notifier import JellyfinNotifier
+from classes.log import log as l
+from classes.nfo import nfo as n
+from classes.worker import worker as w
 from flask import Response, request, send_file, stream_with_context
 from werkzeug.datastructures import Headers
 
-from clases.config import config as c
-from clases.folders import folders as f
-from clases.jellyfin_notifier.jellyfin_notifier import JellyfinNotifier
-from clases.log import log as l
-from clases.nfo import nfo as n
-from clases.worker import worker as w
 from utils.episode_numbering import format_episode_title, get_next_episode_number
 from utils.sanitize import sanitize
 

@@ -5,7 +5,7 @@ Notifies Jellyfin or Emby to scan a specific library when new content is added
 
 import requests
 
-from clases.log import log as l
+from classes.log import log as l
 
 
 class JellyfinNotifier:
@@ -74,9 +74,7 @@ class JellyfinNotifier:
         try:
             # Endpoint is the same for both Jellyfin and Emby
             url = f"{self.base_url}/Library/VirtualFolders"
-            headers = {
-                "Authorization": f'MediaBrowser Token="{self.api_key}"'
-            }
+            headers = {"Authorization": f'MediaBrowser Token="{self.api_key}"'}
 
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
@@ -145,9 +143,7 @@ class JellyfinNotifier:
             # Refresh only the specific library (CollectionFolder).
             # Endpoint: POST /Items/{Id}/Refresh where {Id} is the library's ItemId.
             url = f"{self.base_url}/Items/{library_id}/Refresh"
-            headers = {
-                "Authorization": f'MediaBrowser Token="{self.api_key}"'
-            }
+            headers = {"Authorization": f'MediaBrowser Token="{self.api_key}"'}
             # Conservative params: pick up new/changed files, do not re-extract
             # metadata or images. This is the lightest possible refresh.
             params = {

@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 
 import config.plugins as plugins
-from clases.log import log as l
+from classes.log import log as l
 from version import __version__ as APP_VERSION
 
 
@@ -75,4 +75,3 @@ def main(raw_args=None):
 
 if __name__ == "__main__":
     main()
-

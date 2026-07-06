@@ -8,9 +8,9 @@ from subprocess import PIPE, Popen
 import schedule
 from flask_socketio import emit
 
-from clases.config import config as c
-from clases.cron import cron as cron
-from clases.log import log as l
+from classes.config import config as c
+from classes.cron import cron as cron
+from classes.log import log as l
 
 
 class Ui:
@@ -65,8 +65,11 @@ class Ui:
                 try:
                     config = c.config("./config/config.json").get_config()
                     channels = c.config(config["channels_list_file"]).get_channels()
-                except:
-                    # Si no se puede cargar la config, usar valores por defecto
+                except Exception as e:
+                    l.log(
+                        "uipy",
+                        f"Couldn't load config.json or channels_list_file because {e}",
+                    )
                     config = {}
                     channels = None
 

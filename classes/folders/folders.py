@@ -2,8 +2,8 @@ import os
 import platform
 import time
 
-from clases.config import config as c
-from clases.log import log as l
+from classes.config import config as c
+from classes.log import log as l
 
 
 class folders:

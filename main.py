@@ -8,10 +8,10 @@ from flask import Flask, request
 app = Flask(
     __name__, template_folder="ui/html", static_folder="ui/static", static_url_path=""
 )
-from clases.config import config as c
-from clases.cron import cron as cron
-from clases.folders import folders as f
-from clases.log import log as l
+from classes.config import config as c
+from classes.cron import cron as cron
+from classes.folders import folders as f
+from classes.log import log as l
 
 stop_event = None
 

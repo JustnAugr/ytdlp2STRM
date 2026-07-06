@@ -1,17 +1,18 @@
-import requests
-import html
-import re
-from PIL import Image
 from io import BytesIO
-from clases.folders import folders as f
-from clases.log import log as l
+
+import requests
+from PIL import Image
+
+from classes.folders import folders as f
+from classes.log import log as l
+
 
 class nfo:
     def __init__(self, nfo_type, nfo_path, nfo_data):
         self.nfo_type = nfo_type
         self.nfo_path = nfo_path
         self.nfo_data = nfo_data
-    
+
     def make_nfo(self):
         # Verificar el tipo de NFO
         if self.nfo_type == "tvshow":
@@ -26,7 +27,7 @@ class nfo:
         else:
             l.log("nfo", "Invalid NFO type.")
             return
-        
+
         l.log("nfo", "Creating NFO file...")
         # Defaults para campos opcionales nuevos (p.ej. runtime/duration en
         # episodes) y para evitar KeyError en plantillas existentes cuando
@@ -38,8 +39,8 @@ class nfo:
 
         # Crear el archivo NFO
         f.folders().write_file_spaces(
-            f"{self.nfo_path}/{nfo_filename}", 
-            nfo_content  # No uses nfo_content.strip()
+            f"{self.nfo_path}/{nfo_filename}",
+            nfo_content,  # No uses nfo_content.strip()
         )
         # Descargar las imágenes correspondientes
         self.download_images(nfo_filename)
@@ -47,31 +48,39 @@ class nfo:
     def download_images(self, nfo_filename):
         try:
             if self.nfo_type == "tvshow":
-                self.download_image(self.nfo_data['poster'], f"{self.nfo_path}/poster.png")
-                self.download_image(self.nfo_data['landscape'], f"{self.nfo_path}/banner.png")
-                self.download_image(self.nfo_data['landscape'], f"{self.nfo_path}/backdrop.png")
+                self.download_image(
+                    self.nfo_data["poster"], f"{self.nfo_path}/poster.png"
+                )
+                self.download_image(
+                    self.nfo_data["landscape"], f"{self.nfo_path}/banner.png"
+                )
+                self.download_image(
+                    self.nfo_data["landscape"], f"{self.nfo_path}/backdrop.png"
+                )
             elif self.nfo_type == "episode":
-                image_url = self.nfo_data['preview']
-                self.download_image(image_url, f"{self.nfo_path}/{nfo_filename.replace('.nfo','')}.png")
+                image_url = self.nfo_data["preview"]
+                self.download_image(
+                    image_url, f"{self.nfo_path}/{nfo_filename.replace('.nfo', '')}.png"
+                )
         except Exception as e:
             print(e)
 
     def download_image(self, url, path):
         # Skip if URL is None, empty, or invalid
-        if not url or url == 'None' or url.strip() == '' or url == 'unknown':
+        if not url or url == "None" or url.strip() == "" or url == "unknown":
             l.log("nfo", f"Skipping image download - no valid URL provided for {path}")
             return
-        
+
         try:
             l.log("nfo", f"Attempting to download image from: {url}")
             response = requests.get(url, timeout=10)
             response.raise_for_status()  # Check if the request was successful
-            
+
             # Convertir a PNG
             image = Image.open(BytesIO(response.content))
             png_image_path = path
-            image.save(png_image_path, 'PNG')
-            
+            image.save(png_image_path, "PNG")
+
             l.log("nfo", f"Image downloaded and converted to PNG: {path}")
         except requests.RequestException as e:
             l.log("nfo", f"Failed to download image from {url}: {e}")
@@ -117,3 +126,4 @@ class nfo:
     </fileinfo>
 </episodedetails>
     """
+
