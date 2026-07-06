@@ -6,4 +6,4 @@ Bump this string on every release following SemVer (MAJOR.MINOR.PATCH):
 - PATCH: backwards-compatible bug fixes.
 """
 
-__version__ = "3.0.0"
+__version__ = "4.0.0"

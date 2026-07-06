@@ -1097,17 +1097,33 @@ def to_strm(method):
     _load_config_values()
 
     l.log(
-        "youtube", f"to_strm: Running for the following channels: {', '.join(channels)}"
+        "youtube",
+        f"to_strm: Running for the following channels: {
+            ', '.join(map(lambda c: c['channel'], channels))
+        } with method: {method}",
     )
-    l.log("youtube", f"to_strm: Going to process {videos_limit} # of videos")
+    l.log(
+        "youtube",
+        f"to_strm: Going to process channels with a video limit of {videos_limit}",
+    )
 
     for youtube_channel in channels:
-        yt = Youtube(youtube_channel)
+        channel_url = youtube_channel["channel"]
 
         log_text = " --------------- "
         l.log("youtube", log_text)
-        log_text = f"Working {youtube_channel}..."
+        log_text = f"Working {channel_url}..."
         l.log("youtube", log_text)
+
+        channel_method = method
+        if youtube_channel["method"] != "default":
+            channel_method = youtube_channel["method"]
+            l.log(
+                "youtube",
+                f"to_strm: overwriting method {method} with channel specific method of {channel_method}",
+            )
+
+        yt = Youtube(channel_url)
 
         # get videos under video limit
         videos = yt.get_results()
@@ -1192,14 +1208,8 @@ def to_strm(method):
                 youtube_channel_folder = youtube_channel.replace("/user/", "@").replace(
                     "/streams", ""
                 )
-                # In `iframe` mode the STRM points directly to the public YouTube
-                # watch URL, so players that support web/iframe playback (or the
-                # user's external app) can resolve it natively without going
-                # through ytdlp2STRM.
-                if method == "iframe":
-                    file_content = f"https://www.youtube.com/watch?v={video_id}"
-                else:
-                    file_content = f"http://{host}:{port}/{source_platform}/{video_id}"
+
+                file_content = f"http://{host}:{port}/{source_platform}/{video_id}"
 
                 channel_folder = sanitize(
                     "{} [{}]".format(youtube_channel_folder, channel_id)
@@ -1230,8 +1240,8 @@ def to_strm(method):
                     )
                     download_subtitles_for_video(video_id, existing_strm_path)
 
-                    if method == "download":
-                        # create our download directory if it doesn't already exist
+                    if channel_method == "download":
+                        # check if we already downloaded this video
                         current_dir = os.getcwd()
                         video_dir = os.path.join(current_dir, "downloads", video_id)
 
@@ -1341,7 +1351,8 @@ def to_strm(method):
                     f.folders().write_file(file_path, file_content)
 
                 download_subtitles_for_video(video_id, file_path)
-                download(video_id, channel_folder)
+                if channel_method == "download":
+                    download(video_id, channel_name)
 
             # Notify Jellyfin/Emby after processing all videos for this channel
             jellyfin_notifier = JellyfinNotifier(config)

@@ -15,7 +15,7 @@ socketio = SocketIO(
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 
-descriptions = {
+config_descriptions = {
     "ytdlp2strm_host": "host that'll be used in the output .strm files",
     "ytdlp2strm_port": "port that'll be used in the output .strm files",
     "ytdlp2strm_keep_old_strm": "should we keep strm files once they're no longer in our videos_limit # of latest videos?",
@@ -36,7 +36,7 @@ descriptions = {
     "jellyfin_library_name": "library to refresh",
 }
 
-options = {
+config_options = {
     "ytdlp2strm_keep_old_strm": ["True", "False"],
     "sponsorblock": ["True", "False"],
     "download_subtitles": ["True", "False"],
@@ -90,8 +90,8 @@ def general_settings():
         config_data=config_data,
         result=result,
         request=request.method,
-        descriptions=descriptions,
-        options=options,
+        descriptions=config_descriptions,
+        options=config_options,
     )
 
 
@@ -149,7 +149,15 @@ def plugin_channels(plugin):
         config_data["config_file"] = "{}/{}/{}".format(
             "./plugins", selected_plugin[0]["name"], "channel_list.json"
         )
-        config_data["channels"] = request.form.getlist("channels")
+
+        headers = ("channel", "method")
+        values = (request.form.getlist("channel[]"), request.form.getlist("method[]"))
+        channels = [{} for i in range(len(values[0]))]
+        for x, i in enumerate(values):
+            for _x, _i in enumerate(i):
+                channels[_x][headers[x]] = _i
+        config_data["channels"] = channels
+
         _ui.plugins = config_data
 
         if config_data["channels"]:

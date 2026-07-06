@@ -9,7 +9,7 @@
   "sponsorblock": "True",
   "sponsorblock_cats": "sponsor",
   "lang": "en",
-  "video_quality": "1440",
+  "video_quality": "1080",
   "download_subtitles": "True",
   "convert_subtitles_to_srt": "True",
   "keep_vtt_subtitles": "True",
@@ -18,3 +18,4 @@
   "jellyfin_api_key": "",
   "jellyfin_library_name": "Youtube"
 }
+
