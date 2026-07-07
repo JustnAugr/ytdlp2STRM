@@ -1642,32 +1642,6 @@ def _resolve_direct_m3u8(youtube_id, full_info_json):
         response.text, subtitle_info, youtube_id
     )
 
-    # if we have nothing after filtering, return early
-    if not filtered_content:
-        return filtered_content
-
-    # direct serve the media playlist
-    variant_url = None
-    for line in filtered_content.splitlines():
-        stripped = line.strip()
-        if stripped and not stripped.startswith("#"):
-            variant_url = stripped
-            break
-    if variant_url:
-        try:
-            variant_response = requests.get(variant_url, timeout=15)
-            if variant_response.status_code == 200:
-                variant_response.encoding = "utf-8"
-                media_playlist = _make_media_playlist_absolute(
-                    variant_response.text, variant_url
-                )
-                filtered_content = media_playlist
-        except Exception as e:
-            l.log(
-                "youtube",
-                f"direct: Error downloading media playlist for {youtube_id}: {e}",
-            )
-
     return filtered_content
 
 
