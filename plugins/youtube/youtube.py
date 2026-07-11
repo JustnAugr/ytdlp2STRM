@@ -1312,6 +1312,7 @@ def to_strm(method):
                             )
                             download(video_id, channel_name)
 
+                    video_index = video_index + 1
                     continue
 
                 # Format title with episode number (only for NEW videos)
