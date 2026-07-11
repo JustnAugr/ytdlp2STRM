@@ -45,13 +45,28 @@ def _load_config_values():
         SECRET_KEY, \
         DOCKER_PORT, \
         proxy, \
-        proxy_url
+        proxy_url, \
+        download_only_latest, \
+        videos_to_download_if_latest
+
     config = c.config("./config/config.json").get_config()
     channels = c.config(config["channels_list_file"]).get_channels()
 
     media_folder = config["strm_output_folder"]
     days_dateafter = config["days_dateafter"]
     videos_limit = config["videos_limit"]
+
+    try:
+        download_only_latest = str(config["download_only_latest"]).lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
+        videos_to_download_if_latest = int(config["videos_to_download_if_latest"])
+    except Exception:
+        download_only_latest = False
+        videos_to_download_if_latest = 0
 
     try:
         lang = config["lang"]
@@ -1184,6 +1199,15 @@ def to_strm(method):
             channel_nfo = True
             channel_folder_created = True
 
+            video_index = 0
+            first_video_to_download = len(videos) - videos_to_download_if_latest
+
+            if download_only_latest:
+                l.log(
+                    "youtube",
+                    f"Only going to keep the latest {videos_to_download_if_latest} videos downloaded, so starting at index {first_video_to_download}",
+                )
+
             for video in videos:
                 video_id = video["id"]
                 channel_id = video["channel_id"]
@@ -1245,11 +1269,42 @@ def to_strm(method):
                         current_dir = os.getcwd()
                         video_dir = os.path.join(current_dir, "downloads", video_id)
 
+                        # video is already downloaded
                         if os.path.exists(video_dir):
-                            l.log(
-                                "youtube",
-                                "not re-downloading video as I see it already exists",
-                            )
+                            # if the video shouldn't be downloaded anymore, delete it
+                            if (
+                                video_index < first_video_to_download
+                                and download_only_latest
+                            ):
+                                l.log(
+                                    "youtube",
+                                    f"{video_id} already downloaded, deleting as not in our range of {videos_to_download_if_latest} videos to keep downloaded, video is index {video_index}",
+                                )
+                                os.removedirs(video_dir)
+                            elif (
+                                download_only_latest
+                            ):  # the video SHOULD still be downloaded
+                                l.log(
+                                    "youtube",
+                                    f"{video_id} already downloaded, not deleting as still in our range of {videos_to_download_if_latest} videos to keep downloaded, video is index {video_index}",
+                                )
+                            else:  # there's no video-download constraint, we should be downloading and keeping all
+                                l.log(
+                                    "youtube",
+                                    f"not re-downloading video {video_id} as I see it already exists",
+                                )
+                        elif download_only_latest:  # video is not yet downloaded, and we only want to download latest
+                            if video_index >= first_video_to_download:
+                                l.log(
+                                    "youtube",
+                                    f"Downloading {video_id} as I see it doesn't exist even though our STRM file exists, and {video_index} is in our range of {videos_to_download_if_latest} videos to keep downloaded",
+                                )
+                                download(video_id, channel_name)
+                            else:
+                                l.log(
+                                    "youtube",
+                                    f"Not downloading {video_id} as {video_index} is NOT in our range of {videos_to_download_if_latest} videos to keep downloaded",
+                                )
                         else:
                             l.log(
                                 "youtube",
@@ -1351,8 +1406,26 @@ def to_strm(method):
                     f.folders().write_file(file_path, file_content)
 
                 download_subtitles_for_video(video_id, file_path)
+
                 if channel_method == "download":
-                    download(video_id, channel_name)
+                    if download_only_latest:
+                        if video_index >= first_video_to_download:
+                            l.log(
+                                "youtube",
+                                f"downloading new video {video_id} as index {video_index} is >= our first_video_to_download {first_video_to_download}",
+                            )
+                            download(video_id, channel_name)
+                        else:
+                            l.log(
+                                "youtube",
+                                f"NOT downloading new video {video_id} as index {video_index} is < our first_video_to_download {first_video_to_download}",
+                            )
+                    else:
+                        l.log("youtube", f"downloading new video: {video_id}")
+                        download(video_id, channel_name)
+
+                # increment video index
+                video_index = video_index + 1
 
             # Notify Jellyfin/Emby after processing all videos for this channel
             jellyfin_notifier = JellyfinNotifier(config)
@@ -1798,15 +1871,15 @@ def stream(youtube_id, remote_addr):
         )
 
     # do we have a direct version of this already cached at our requested quality?
-    stream_cache_key = f"{youtube_id}:{lang}:{_quality_cache_tag()}"
-    l.log("youtube", f"stream: will use stream_cache_key: {stream_cache_key}")
-    cached_stream = direct_stream_cache.get(stream_cache_key)
-    if cached_stream:
-        l.log(
-            "youtube",
-            f"stream: Found cached_stream using stream_cache_key: {stream_cache_key}",
-        )
-        return _make_direct_response(cached_stream)
+    # stream_cache_key = f"{youtube_id}:{lang}:{_quality_cache_tag()}"
+    # l.log("youtube", f"stream: will use stream_cache_key: {stream_cache_key}")
+    # cached_stream = direct_stream_cache.get(stream_cache_key)
+    # if cached_stream:
+    #     l.log(
+    #         "youtube",
+    #         f"stream: Found cached_stream using stream_cache_key: {stream_cache_key}",
+    #     )
+    #     return _make_direct_response(cached_stream)
 
     # if not let's continue with grabbing it from ytdlp
     # first we get the video JSON - to be used by direct and bridge
@@ -1821,28 +1894,28 @@ def stream(youtube_id, remote_addr):
         file_size = info.get("filesize") or info.get("filesize_approx")
     except Exception as e:
         l.log("youtube", f"stream: Error getting info: {e}")
-
-    # youtube won't serve a direct HLS stream containing video+audio at anything above 1080p
-    # so let's short-circuit and go straight to our transcoded merged bridge stream
-    min_height = _get_video_quality_height()
-    if min_height > 1080:
-        l.log(
-            "youtube",
-            f"stream: going direct to bridge mode given our min_height is > 1080 at: {min_height}",
-        )
-        return bridge(youtube_id, s_youtube_id_url, video_format, file_size, duration)
-
-    # let's try direct first, can we find a direct m3u8?
-    direct_m3u8 = _resolve_direct_m3u8(youtube_id, info)
-
-    # we have a matching direct stream! let's return it
-    if direct_m3u8:
-        l.log(
-            "youtube",
-            "stream: caching and serving it now",
-        )
-        direct_stream_cache[stream_cache_key] = direct_m3u8
-        return _make_direct_response(direct_m3u8)
+    #
+    # # youtube won't serve a direct HLS stream containing video+audio at anything above 1080p
+    # # so let's short-circuit and go straight to our transcoded merged bridge stream
+    # min_height = _get_video_quality_height()
+    # if min_height > 1080:
+    #     l.log(
+    #         "youtube",
+    #         f"stream: going direct to bridge mode given our min_height is > 1080 at: {min_height}",
+    #     )
+    #     return bridge(youtube_id, s_youtube_id_url, video_format, file_size, duration)
+    #
+    # # let's try direct first, can we find a direct m3u8?
+    # direct_m3u8 = _resolve_direct_m3u8(youtube_id, info)
+    #
+    # # we have a matching direct stream! let's return it
+    # if direct_m3u8:
+    #     l.log(
+    #         "youtube",
+    #         "stream: caching and serving it now",
+    #     )
+    #     direct_stream_cache[stream_cache_key] = direct_m3u8
+    #     return _make_direct_response(direct_m3u8)
 
     # else let's fall back our bridge
     l.log("youtube", "no direct m3u8 found, falling back to bridge mode")
@@ -1875,6 +1948,7 @@ def download(youtube_id, channel):
     if config["sponsorblock"]:
         command = [
             "yt-dlp",
+            "-v",
             "-f",
             "bv*+ba+ba.2",
             "-o",
@@ -1882,16 +1956,21 @@ def download(youtube_id, channel):
             "--sponsorblock-remove",
             config["sponsorblock_cats"],
             "--restrict-filenames",
+            "--retry-sleep",
+            "linear=1::2",
             s_youtube_id,
         ]
     else:
         command = [
             "yt-dlp",
+            "-v",
             "-f",
             "bv*+ba+ba.2",
             "-o",
             f"{filepath}.%(ext)s",
             "--restrict-filenames",
+            "--retry-sleep",
+            "linear=1::2",
             s_youtube_id,
         ]
     Youtube().set_language(command)
@@ -1902,6 +1981,9 @@ def download(youtube_id, channel):
     end = time.time()
 
     l.log("youtube", f"download: completed download in {end - start}s of {filepath}")
+
+    l.log("youtube", "going to sleep for 1 minute to prevent youtube throttling")
+    time.sleep(60)
 
     return filepath
 

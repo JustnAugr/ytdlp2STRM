@@ -1,8 +1,7 @@
 import argparse
-from datetime import datetime
 
-import config.plugins as plugins
 from classes.log import log as l
+from plugins.youtube import youtube
 from version import __version__ as APP_VERSION
 
 
@@ -12,65 +11,20 @@ def main(raw_args=None):
     parser.add_argument("-m", "--media", help="Media platform")
     parser.add_argument("-p", "--params", help="Params to media platform mode.")
     parser.add_argument("-v", "--version", help="Show YTDLP2STRM version")
-    # Keep working for old version
-    parser.add_argument("--m", help="Media platform (old)")
-    parser.add_argument("--p", help="Params to media platform mode (old)")
-    # --
 
     args = parser.parse_args(raw_args)
-    method = args.media if args.media != None else "error"
-    params = args.params.split(",") if args.params != None else None
+    params = args.params.split(",") if args.params is not None else None
 
-    # Keep working for old version
-    if method == "error":
-        method = args.m if args.m != None else None
-    if params == None:
-        params = args.p.split(",") if args.p != None else None
-
-    try:
-        if "plugins" in method:
-            method = method.split(".")[1]
-        if method == "make_files_strm":
-            method = "youtube"
-    except:
-        method = None
-
-    try:
-        if "twitch" in params:
-            params = [params[1]]
-        if "redirect" in params:
-            params = ["direct"]
-        if "stream" in params:
-            params = ["bridge"]
-    except:
-        params = None
-    # --
-
-    now = datetime.now()
-    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-
-    log_text = "Running {} with {} params".format(method, params)
-    l.log("CLI", log_text)
+    if params is None:
+        params = args.p.split(",") if args.p is not None else None
 
     if args.version:
         log_text = "ytdlp2STRM version: {}".format(APP_VERSION)
         l.log("CLI", log_text)
 
-    r = False
-    if params != None and method:
-        # Resolucion segura del plugin: en lugar de eval() sobre una cadena
-        # construida con entrada del usuario (riesgo de inyeccion de codigo),
-        # se obtiene el modulo del plugin y su funcion to_strm via getattr.
-        # getattr solo devuelve atributos ya existentes del modulo config.plugins,
-        # por lo que un 'method' arbitrario no puede ejecutar codigo.
-        plugin_module = getattr(plugins, method, None)
-        to_strm_func = (
-            getattr(plugin_module, "to_strm", None) if plugin_module else None
-        )
-        if callable(to_strm_func):
-            r = to_strm_func(*params)
-        else:
-            l.log("CLI", "Unknown or invalid plugin method: {}".format(method))
+    if params is not None:
+        l.log("CLI", f"Running youtube with {params}")
+        youtube.to_strm(*params)
 
 
 if __name__ == "__main__":

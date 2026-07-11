@@ -113,7 +113,7 @@ class worker:
             return process.stdout.decode("latin1")  # Intentamos decodificar con latin1
 
     def call(self):
-        return subprocess.call(self.command)
+        return subprocess.check_call(self.command)
 
     def run(self):
         process = subprocess.Popen(self.command, stdout=subprocess.PIPE, shell=True)
