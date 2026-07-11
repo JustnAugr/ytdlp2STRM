@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
     button.addEventListener('click', function () {
       if (!run_block) {
         const mediaName = this.getAttribute('data-media-name');
-        const command = `python cli.py --media ${mediaName} --params bridge`;
+        const command = `python cli.py --media ${mediaName} --params download`;
 
         // Remover el input si existe antes de ejecutar
         const existingInput = document.querySelector('#terminal .input-line');

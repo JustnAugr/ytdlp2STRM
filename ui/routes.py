@@ -34,6 +34,8 @@ config_descriptions = {
     "jellyfin_base_url": "url and port of jellyfin instance",
     "jellyfin_api_key": "API token for connecting",
     "jellyfin_library_name": "library to refresh",
+    "download_only_latest": "if method is set as download, download only the latest X videos",
+    "videos_to_download_if_latest": "how many videos to download if download_only_latest is set",
 }
 
 config_options = {
@@ -44,6 +46,7 @@ config_options = {
     "keep_vtt_subtitles": ["True", "False"],
     "jellyfin_integration": ["True", "False"],
     "video_quality": ["1080", "1440", "2160"],
+    "download_only_latest": ["True", "False"],
 }
 
 
